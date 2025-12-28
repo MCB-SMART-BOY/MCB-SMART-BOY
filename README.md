@@ -28,7 +28,7 @@
 <img align="right" src="https://raw.githubusercontent.com/gist/patevs/b007a0e98fb216571f7bc15e8657a530/raw/88f20c9d749d756be63f22b09f3c4ac570bc5101/programming.gif" width="300"/>
 
 ```bash
-$ neofetch
+$ fastfetch
 ```
 
 ```yaml
