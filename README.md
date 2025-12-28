@@ -20,6 +20,8 @@
 
 ---
 
+<img align="right" src="https://media.giphy.com/media/qgQUggAC3Pfv687qPC/giphy.gif" width="280"/>
+
 ```yaml
 focus:
   - Real-time Inference
@@ -27,6 +29,10 @@ focus:
   - Kernel Development
   - Computer Vision
 ```
+
+<img src="https://rustacean.net/assets/rustacean-flat-gesture.png" width="120"/>
+
+<br clear="both"/>
 
 ---
 
