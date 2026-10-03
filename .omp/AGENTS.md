@@ -1,24 +1,26 @@
 # MCB / LOG 项目上下文
 
-本项目是 Rust 全栈个人博客 demo；用户可见的流程：首页 → 文章归档或关注方向 → 文章阅读 / 关于。三篇文章为示例，并非作者已发布成果。根目录 `README.md` 仅用于 GitHub 用户自我介绍，不承载博客介绍、示例文章声明或折叠的项目手册。个人资料以用户已有介绍为准，不虚构履历与成果；视觉沿用博客的蓝白／紫黑配色与几何排版，但不沿用博客品牌。本文件负责博客运行说明、代码事实、设计参考和维护路由。
+本项目是 Rust 全栈个人博客 demo；用户可见的流程：首页 → 文章归档或关注方向 → 文章阅读 / 关于。三篇文章为示例，并非作者已发布成果。根目录 `README.md` 仅用于 GitHub 用户自我介绍，不承载博客介绍、示例文章声明或折叠的项目手册。个人资料以用户已有介绍为准，不虚构履历与成果；博客浅色主题参考 `resume-template` 的暖纸色、细网格与靛蓝点缀，深色保留紫黑科幻主题。本文件负责博客运行说明、代码事实、设计参考和维护路由。
 
 ## 代码与职责
 
 | 修改目标 | 事实源 |
 |---|---|
-| 文章正文与元数据 | `content/posts/*.md`、`src/content.rs`；顺序和 slug 由代码确定，正文编入二进制 |
+| 文章正文与元数据 | `content/posts/*.md`、`src/content.rs`；顺序、slug、阅读分钟数和可选文章层级由代码确定，正文编入二进制 |
 | 页面路由与 SSR 文档 | `src/app.rs`、`src/server.rs`、`src/main.rs` |
 | 首页、归档、详情、关注领域、关于、404 | `src/pages/` |
-| 导航、侧栏、顶栏与移动菜单 | `src/components/` |
-| 主题、侧栏宽度与 cookie | `src/preferences.rs` |
+| 导航、侧栏、顶栏、面包屑、分享与移动菜单 | `src/components/` |
+| 主题、侧栏宽度与 cookie | `src/preferences.rs`；语言及 `mcb-lang` cookie 见 `src/locale.rs` |
 | Markdown HTML 安全边界 | `src/markdown.rs` |
-| 色彩和布局 / 本地图标 | `assets/site.css` / `public/favicon.svg` |
+| 色彩和布局 / 本地字体与许可 / 本地图标 | `assets/site.css` / `public/fonts/` / `public/favicon.svg` |
 | Rust 和前端 WASM 构建 / 依赖审计 | `Cargo.toml`、`Cargo.lock`、`dev.sh`、`validate.sh`、`deny.toml` |
 | GitHub 用户自我介绍 / 本地图形资源 | `README.md` / `.github/assets/profile-*.svg`；双色横幅、终端卡片、兴趣卡片和技术图标 |
 
-架构为 Axum HTTP + Leptos SSR/hydrate（浏览器端 Rust/WASM）；不需要 Node/Bun 或外部页面资产。移动端 SSR 在 WASM 不可用时仍提供真实链接导航；动态主题、折叠、宽度拖动与移动抽屉需要 hydration。首屏主题与侧栏设定由服务端读取 `mcb-ui` cookie；所有来自 cookie 的值须受 `src/preferences.rs` 限制，客户端更新同一字段，避免 SSR/hydration 不一致。Markdown 仅收录仓库内容，未暴露投稿接口；原始 HTML 和不安全链接不被作为可执行页面内容接受。
+架构为 Axum HTTP + Leptos SSR/hydrate（浏览器端 Rust/WASM）；不需要 Node/Bun 或外部页面资产。移动端 SSR 在 WASM 不可用时仍提供真实链接导航；动态主题、折叠、宽度拖动、移动抽屉、分享与语言选择需要 hydration。首屏主题与侧栏设定由服务端读取 `mcb-ui` cookie，语言由 `mcb-lang` cookie 读取，合法值仅 `zh-CN` 和 `en`，默认中文。服务端渲染 `<html lang>` 及同源 bootstrap 数据，客户端使用同一初值避免 SSR/hydration 不一致。语言切换只翻译固定界面文案，三篇示例文章正文与标题依旧是中文原文（`lang="zh-CN"` 并标注原文）；不要把英文 UI 误报为英文版文章。所有来自 cookie 的值须受解析器限制，客户端仅更新对应字段。Markdown 仅收录仓库内容，未暴露投稿接口；原始 HTML 和不安全链接不被作为可执行页面内容接受。
 
 `Cargo.toml` 的 `disable-erase-components = true` 保持服务端与 WASM 的组件 hydration 标记一致：在真实浏览器中，去掉此设置曾使顶栏按钮失效并触发 `Unrecoverable hydration error`。变更 Leptos 版本或调整组件边界时必须用浏览器重新验证首页、文章与交互；编译和 SSR 路由测试不足以证明 hydration 成功。
+
+顶栏左侧为可回溯的当前位置面包屑，中间为 `MCB-SMART-BOY`，右侧顺序由左到右为语言、主题、GitHub、分享；未来文章的路径层级使用 `src/content.rs` 的 `Post::trail`，不得由 slug 猜出虚构栏目。桌面折叠键在侧栏品牌区，展开时位于标志右侧，折叠时位于标志上方；移动端使用顶栏菜单键。分享优先调用浏览器 Web Share，不支持时复制当前完整 URL，权限/能力失败时展示可手动复制的真实链接；不把失败伪装为成功。
 
 `deny.toml` 仅允许已核对的许可证，并针对 Leptos 0.8 间接依赖的 `paste`、`proc-macro-error2` 停止维护通告记录逐项例外（当前依赖链无可直接升级的修补版本）。项目维护者在 2027-01-03 前及升级框架后复核并清理不再需要的例外，不可把它们解释为不存在安全风险。
 
@@ -62,10 +64,10 @@
 | `/focus` | 三个关注方向 |
 | `/about` | 作者与 demo 说明 |
 
-新增文章时在 `src/content.rs` 维护文章顺序、slug、日期及摘要，在 `content/posts/` 增加正文并重建应用；正文随 Rust 二进制编译，页面更新不依赖在线数据库。首次 HTTP 响应包含可阅读的服务端 HTML；hydration 成功后客户端导航与偏好交互可用。桌面侧栏切页后将键盘焦点移到正文，移动抽屉关闭后焦点返回触发按钮或目标正文。
+新增文章时在 `src/content.rs` 维护文章顺序、slug、日期、阅读分钟数、摘要和可选 `Post::trail`，在 `content/posts/` 增加正文并重建应用；正文随 Rust 二进制编译，页面更新不依赖在线数据库。首次 HTTP 响应包含可阅读的服务端 HTML；hydration 成功后客户端导航与偏好交互可用。桌面侧栏切页后将键盘焦点移到正文，移动抽屉关闭后焦点返回触发按钮或目标正文。
 
-博客采用浅色纸感与夜间科幻两套主题；侧栏支持折叠、拖动宽度和移动端抽屉。无后台、登录、评论、在线编辑、RSS 或部署配置。正式发布前需替换示例文章、审阅仓库内容，并评估部署安全、浏览器兼容性和可访问性。
+博客采用浅色暖纸细网格与夜间科幻两套主题，采用小圆角控件、圆角卡片；侧栏支持折叠、拖动宽度和移动端抽屉。字体由 `assets/site.css` 的 `@font-face` 自托管 Maple Mono NF、JetBrainsMono Nerd Font Mono、思源黑体与思源宋体 Regular/Bold；微软雅黑与仿宋仅为访客系统字体回退，不重新分发。`public/fonts/NOTICE.txt` 记录来源、SHA 与许可证路径；完整 CJK OTF 较大，首屏需要按需加载字体，在调整字体打包方案时核对字形覆盖与许可。无后台、登录、评论、在线编辑、RSS 或部署配置。正式发布前需替换示例文章、审阅仓库内容，并评估部署安全、浏览器兼容性和可访问性。
 
 ## 博客设计来源
 
-调研了 [Matklad](https://matklad.github.io/) 的单栏文章、[Anthony Fu](https://antfu.me/posts) 的列表密度、[Dan Luu](https://danluu.com/) 的长文归档、[Tarik Karahodžić](https://www.tarikkarahodzic.dev/projects/personal-site) 的留白，以及 [Stefan Vitasović](https://tympanus.net/codrops/2025/03/05/case-study-stefan-vitasovic-portfolio-2025/) 的几何构图。博客以本地 CSS 构图、大字和清晰的文章层级呈现，不复制第三方素材或加入重型动画，尊重系统减少动效偏好。
+调研了 [Matklad](https://matklad.github.io/) 的单栏文章、[Anthony Fu](https://antfu.me/posts) 的列表密度、[Dan Luu](https://danluu.com/) 的长文归档、[Tarik Karahodžić](https://www.tarikkarahodzic.dev/projects/personal-site) 的留白，以及 [Stefan Vitasović](https://tympanus.net/codrops/2025/03/05/case-study-stefan-vitasovic-portfolio-2025/) 的几何构图。浅色与文章背景借鉴本账号 [resume-template](https://github.com/MCB-SMART-BOY/resume-template) 中 `assets/styles/resume.css` 的暖纸底色、20px 浅网格、靛蓝点缀和正文深灰，而非复制用于 A4 导出的整张背景图。博客以本地 CSS 构图、大字和清晰的文章层级呈现，不复制第三方素材或加入重型动画，尊重系统减少动效偏好。

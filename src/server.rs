@@ -20,21 +20,22 @@ mod tests {
     use super::build_app;
     use axum::{
         body::{Body, to_bytes},
-        http::{Request, StatusCode},
+        http::{Request, StatusCode, header::COOKIE},
     };
     use leptos::prelude::get_configuration;
     use tower::ServiceExt;
 
     const MAX_TEST_RESPONSE_BYTES: usize = 1024 * 1024;
 
-    async fn request_page(path: &str) -> (StatusCode, String) {
+    async fn request_page_with_cookie(path: &str, cookie: Option<&str>) -> (StatusCode, String) {
         let options = get_configuration(Some("Cargo.toml"))
             .expect("valid test configuration")
             .leptos_options;
-        let request = Request::builder()
-            .uri(path)
-            .body(Body::empty())
-            .expect("valid URI");
+        let mut builder = Request::builder().uri(path);
+        if let Some(cookie) = cookie {
+            builder = builder.header(COOKIE, cookie);
+        }
+        let request = builder.body(Body::empty()).expect("valid URI");
         let response = build_app(options)
             .oneshot(request)
             .await
@@ -47,6 +48,34 @@ mod tests {
             status,
             String::from_utf8(bytes.to_vec()).expect("UTF-8 page"),
         )
+    }
+    async fn request_page(path: &str) -> (StatusCode, String) {
+        request_page_with_cookie(path, None).await
+    }
+
+    #[tokio::test]
+    async fn article_english_cookie_preserves_original_and_ui_preferences() {
+        let (status, body) = request_page_with_cookie(
+            "/writing/small-systems",
+            Some("mcb-lang=en; mcb-ui=dark:1:320"),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("lang=\"en\""));
+        assert!(body.contains("data-theme=\"dark\""));
+        assert!(body.contains("Chinese original"));
+        assert!(body.contains("把系统做小，是一种工程能力"));
+        assert!(body.contains("Back to all posts"));
+    }
+
+    #[tokio::test]
+    async fn article_invalid_language_cookie_uses_chinese() {
+        let (status, body) =
+            request_page_with_cookie("/writing/small-systems", Some("mcb-lang=english")).await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("lang=\"zh-CN\""));
+        assert!(body.contains("中文原文"));
+        assert!(body.contains("返回全部文章"));
     }
 
     #[tokio::test]

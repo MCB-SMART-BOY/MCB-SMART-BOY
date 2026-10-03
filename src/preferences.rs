@@ -23,7 +23,7 @@ impl Theme {
 
     pub const fn color(self) -> &'static str {
         match self {
-            Self::Light => "#f7faff",
+            Self::Light => "#fcfbf7",
             Self::Dark => "#09070f",
         }
     }

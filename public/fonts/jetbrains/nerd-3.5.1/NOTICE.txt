@@ -1,0 +1,23 @@
+JetBrainsMono Nerd Font Mono v3.5.1 / glyph and license notices
+================================================================
+
+Original release: https://github.com/ryanoasis/nerd-fonts/releases/download/v3.5.1/JetBrainsMono.tar.xz . Nerd Fonts patched the JetBrains Mono 2.304 source font upstream; its OFL license is ../OFL.txt and its author notice is ../AUTHORS.txt. The original versioned patcher, icon source tree, and release-specific icon source table are at https://github.com/ryanoasis/nerd-fonts/tree/v3.5.1 and https://github.com/ryanoasis/nerd-fonts/blob/v3.5.1/patched-fonts/JetBrainsMono/README.md . Nerd Fonts patch copyright and MIT/OFL terms are in NERD-FONTS-LICENSE.txt. These two released font files have not been modified by this distribution. No font, icon, or brand owner endorses this site.
+
+Included icon sources, versions and license/attribution index:
+- Codicons, Microsoft, 0.0.45, CC BY 4.0: Codicons-CC-BY-4.0.txt (full license), https://github.com/microsoft/vscode-codicons . Nerd Fonts documents manual repair of glyphs 0xEB40/0xEB41.
+- Devicons, konpa/Devicons, 2.17.0 custom Nerd glyph font, MIT: Devicons-MIT.txt, https://github.com/devicons/devicon/tree/v2.17.0 . Nerd Fonts selected and rearranged the source glyphs.
+- Hack-derived extra glyphs, Source Foundry Authors and Bitstream, 3.003, MIT and Bitstream Vera: Hack-extraglyphs-LICENSE.txt, https://github.com/source-foundry/Hack/tree/v3.003 .
+- Fira Code-derived progress indicators, Fira Code Project Authors, OFL 1.1: Fira-Code-OFL.txt, https://github.com/tonsky/FiraCode/tree/6.2 ; Nerd Fonts v3.5.1/bin/scripts/lib/i_extra.sh identifies progress glyphs from Fira Code.
+- Font Awesome, Fonticons Inc., 6.5.1 custom selection, CC BY 4.0 for source SVG icons: Font-Awesome-LICENSE.txt (original copyright, OFL, MIT and trademark/brand notice) plus Codicons-CC-BY-4.0.txt (full CC BY 4.0 text), https://github.com/FortAwesome/Font-Awesome . Font glyphs are a Nerd Fonts upstream derivative.
+- Font Awesome Extension, André Luiz Gava, 0.0.3 as identified by Nerd Fonts, MIT: Font-Awesome-Extension-MIT.txt, https://github.com/AndreLZGava/font-awesome-extension .
+- Font Logos (Font Linux), Lukas-W, 1.4.0 per Nerd Fonts v3.5.1/bin/scripts/lib/i_logos.sh, Unlicense/public-domain dedication: Font-Logos-UNLICENSE.txt, https://github.com/Lukas-W/font-logos/tree/v1.4.0 . Nerd Fonts' generated README calls this 'unlicensed', but upstream LICENSE supplies explicit Unlicense terms. The README's icon version 1.3.0 is stale relative to this release's glyphs. Trademark rights are distinct.
+- Material Design Icons, Pictogrammers/Templarian, October 2022 snapshot, Apache 2.0: Material-Design-NOTICE.txt (upstream licensing notice) and Apache-2.0.txt (full terms), https://github.com/Templarian/MaterialDesign-Font . Nerd Fonts documented manual repair of glyph 0xF1522.
+- Octicons, GitHub Inc., 18.3.0, MIT: Octicons-MIT.txt, https://github.com/primer/octicons .
+- Seti-UI and original glyphs, Jesse Weed, Seti-UI 0.8.1; derived Nerd glyph font, MIT: Seti-UI-MIT.txt and NERD-FONTS-LICENSE.txt, https://github.com/jesseweed/seti-ui .
+- Pomicons, Gabriele Lana, 1.001, OFL 1.1 with Reserved Font Name Pomicons: Pomicons-OFL.txt, https://github.com/gabrielelana/pomicons .
+- Powerline Extra Symbols, Ryan L McIntyre, 1.200, MIT: Powerline-Extra-MIT.txt, https://github.com/ryanoasis/powerline-extra-symbols .
+- Powerline Symbols, Kim Silkebækken and contributors, approximately 2013, MIT: Powerline-Symbols-MIT.txt, https://github.com/powerline/powerline .
+- IEC Power Symbols, Joe Loughry, February 2015, MIT: IEC-MIT.txt, https://github.com/jloughry/Unicode .
+- Weather Icons, designs Lukas Bischoff; v1.1+ icon art Erik Flowers, 2.0.10 (Nerd glyph version 1.100), OFL 1.1: full OFL terms in NERD-FONTS-LICENSE.txt, original project's version/author/license statement https://github.com/erikflowers/weather-icons/blob/2.0.10/README.md .
+
+The source glyphs include commercial brand marks. Their trademark ownership is separate from these copyright licenses; no endorsement or sponsorship is asserted. CC BY 4.0 applies to the indicated original SVG-based icon sources, Nerd Fonts patched/selected them upstream, and source links above serve as attribution. See the original versioned Nerd Fonts source tree and each license file for exact terms. No icon glyphs have been newly patched or modified in this distribution.

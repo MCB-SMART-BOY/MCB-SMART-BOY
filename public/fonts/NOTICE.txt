@@ -1,0 +1,40 @@
+Self-hosted font and glyph attribution
+=====================================
+
+Only unmodified Regular and Bold files were extracted from the four original release archives. The original font names and bytes were retained. These font files are distributed under their accompanying SIL Open Font License 1.1 notices; do not sell a font by itself. Neither these font files nor their icon/brand glyphs imply endorsement by their creators or trademark holders. Brand symbols remain trademarks of their respective owners.
+
+Release archive provenance (SHA-256 of the downloaded original archive):
+
+Maple Mono NF v7.9 (non-CN; Nerd Fonts 3.4.0 as stated in v7.9 release config.json)
+  https://github.com/subframe7536/maple-font/releases/download/v7.9/MapleMono-NF.zip
+  sha256 59098b87c895d871635d37680e88000ae2b2b25b55428195b228ec589e35fb89 (matches GitHub release asset digest)
+  maple/LICENSE.txt (OFL 1.1), maple/AUTHORS.txt;
+  maple/nerd-3.4.0/NOTICE.txt (included icon credits, license index and patch origin)
+
+JetBrainsMono Nerd Font Mono v3.5.1 (base JetBrains Mono 2.304)
+  https://github.com/ryanoasis/nerd-fonts/releases/download/v3.5.1/JetBrainsMono.tar.xz
+  sha256 04d5e8f903693f9dd13e16f867e994834e681eb3c72c0d337a770dcda09010cf (matches GitHub release asset digest)
+  jetbrains/OFL.txt (original release OFL 1.1), jetbrains/AUTHORS.txt;
+  jetbrains/nerd-3.5.1/NOTICE.txt (included icon credits, license index and patch origin)
+
+Source Han Sans SC 2.005R
+  https://github.com/adobe-fonts/source-han-sans/releases/download/2.005R/09_SourceHanSansSC.zip
+  sha256 ef7364f7ac2564be1ae9c1d74276de2653fe38b73449070398c4fc0b7e032ff1 (matches GitHub release asset digest)
+  source-han-sans/LICENSE.txt (original release OFL 1.1; Adobe RFN Source)
+
+Source Han Serif SC 2.003R
+  https://github.com/adobe-fonts/source-han-serif/releases/download/2.003R/09_SourceHanSerifSC.zip
+  sha256 8f633642eedf9bf23ab3336faa3d03ce1b56c14d654cd25752bc829c05f79f0d (locally calculated; release API has no digest)
+  source-han-serif/LICENSE.txt (original release OFL 1.1; Adobe RFN Source)
+
+Selected original release files (bytes / SHA-256 / internal family, style):
+  maple/MapleMono-NF-Regular.ttf                         2384652  dbf160ce96358056a47777e95a50af208b438312787cf20917ce2321066de8e5  Maple Mono NF, Regular
+  maple/MapleMono-NF-Bold.ttf                            2386736  cf6fb13160424257ea764a5deb1d55116c9ab5c347cb69c6be2576b44dc3d544  Maple Mono NF, Bold
+  jetbrains/JetBrainsMonoNerdFontMono-Regular.ttf        2573248  f2a5ea6cfab397445ffab00c0370927b66d61e560a05db5db271b42006381c1a  JetBrainsMono Nerd Font Mono, Regular
+  jetbrains/JetBrainsMonoNerdFontMono-Bold.ttf           2577016  bfcf9a917276ffc058867d87cbc8a5b2f1ab0f4b710e9170dc02763ccb80bd4b  JetBrainsMono Nerd Font Mono, Bold
+  source-han-sans/SourceHanSansSC-Regular.otf           16529832  f1d8611151880c6c336aabeac4640ef434fa13cbfbf1ffe82d0a71b2a5637256  Source Han Sans SC, Regular
+  source-han-sans/SourceHanSansSC-Bold.otf              16963428  df2b90f5bcc6d01dfc964cec5f6d535d6b6aebd26ed7fd79a9c1b3f2112fcb6b  Source Han Sans SC, Bold
+  source-han-serif/SourceHanSerifSC-Regular.otf         24543332  78aa7a328fd974df2d688c8a9fd74a33d8334dfa84ab24d9d11efb2ffc464117  Source Han Serif SC, Regular
+  source-han-serif/SourceHanSerifSC-Bold.otf            25521732  706b8c0de2deff6cbc0c87e2cdedfd33a78b7ffd76cebb4549012f197ba611fe  Source Han Serif SC, Bold
+
+All eight face names, styles and Latin/CJK/private-use coverage were inspected with fc-scan. Only the Serif archive lacks an upstream release asset digest; its locally calculated SHA-256 is supplied solely for later byte comparison. The two Nerd Fonts release versions and their corresponding notices are kept separate because their icon glyph collections are not identical.

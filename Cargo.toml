@@ -16,13 +16,15 @@ required-features = ["ssr"]
 axum = { version = "0.8", optional = true }
 console_error_panic_hook = { version = "0.1", optional = true }
 leptos = { version = "=0.8.21" }
+js-sys = { version = "=0.3.106", optional = true }
 leptos_axum = { version = "=0.8.10", optional = true }
 leptos_meta = { version = "=0.8.7" }
 leptos_router = { version = "=0.8.16" }
 pulldown-cmark = "0.13"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"], optional = true }
 wasm-bindgen = { version = "=0.2.129", optional = true }
-web-sys = { version = "0.3", features = ["Window", "Document", "HtmlDocument", "Element", "HtmlElement", "HtmlDialogElement", "HtmlButtonElement", "HtmlDivElement", "HtmlMetaElement", "MediaQueryList", "CssStyleDeclaration", "DomTokenList", "PointerEvent", "KeyboardEvent", "MouseEvent", "Event", "EventTarget", "Location", "Navigator", "Node", "console"], optional = true }
+wasm-bindgen-futures = { version = "=0.4.79", optional = true }
+web-sys = { version = "0.3", features = ["Window", "Document", "HtmlDocument", "Element", "HtmlElement", "HtmlDialogElement", "HtmlButtonElement", "HtmlDivElement", "HtmlInputElement", "HtmlMetaElement", "MediaQueryList", "CssStyleDeclaration", "DomTokenList", "PointerEvent", "KeyboardEvent", "MouseEvent", "Event", "EventTarget", "Location", "Navigator", "Clipboard", "ShareData", "DomException", "Node", "console"], optional = true }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
@@ -30,7 +32,7 @@ tower = { version = "0.5", features = ["util"] }
 [features]
 default = ["ssr"]
 ssr = ["dep:axum", "dep:tokio", "dep:leptos_axum", "leptos/ssr", "leptos_meta/ssr", "leptos_router/ssr"]
-hydrate = ["leptos/hydrate", "dep:wasm-bindgen", "dep:web-sys", "dep:console_error_panic_hook"]
+hydrate = ["leptos/hydrate", "dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:js-sys", "dep:web-sys", "dep:console_error_panic_hook"]
 
 [package.metadata.leptos]
 output-name = "mcb-smart-boy"

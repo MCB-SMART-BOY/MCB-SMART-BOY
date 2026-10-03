@@ -2,13 +2,13 @@ use leptos::{html, prelude::*};
 
 #[cfg(feature = "hydrate")]
 use crate::preferences::SIDEBAR_MOBILE_BREAKPOINT_PX;
-use crate::preferences::UiPreferences;
+use crate::{locale::Locale, preferences::UiPreferences};
 #[cfg(feature = "hydrate")]
 use leptos_router::hooks::use_location;
 
 use super::{
     icons::{Icon, IconKind},
-    sidebar::{Sidebar, SidebarNavigation},
+    sidebar::{Sidebar, SidebarBrand, SidebarNavigation},
     topbar::Topbar,
 };
 
@@ -53,11 +53,24 @@ fn sync_document_preferences(preferences: UiPreferences) {
         let _ = meta.set_attribute("content", preferences.theme.color());
     }
 }
+#[cfg(feature = "hydrate")]
+fn sync_document_locale(locale: Locale) {
+    if let Some(root) = web_sys::window()
+        .and_then(|window| window.document())
+        .and_then(|document| document.document_element())
+    {
+        if root.set_attribute("lang", locale.as_str()).is_err() {
+            web_sys::console::error_1(&"Failed to update document language".into());
+        }
+    }
+}
 
 #[component]
 pub fn SiteShell(children: Children) -> impl IntoView {
     let preferences = use_context::<RwSignal<UiPreferences>>()
         .unwrap_or_else(|| RwSignal::new(UiPreferences::default()));
+    let locale =
+        use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
     let is_hydrated = RwSignal::new(false);
     let viewport_width = RwSignal::new(1440_u16);
     let is_drawer_open = RwSignal::new(false);
@@ -77,6 +90,7 @@ pub fn SiteShell(children: Children) -> impl IntoView {
             path
         });
         Effect::new(move || sync_document_preferences(preferences.get()));
+        Effect::new(move || sync_document_locale(locale.get()));
         Effect::new(move || {
             if let Some(window) = web_sys::window() {
                 if let Ok(width) = window.inner_width() {
@@ -117,18 +131,18 @@ pub fn SiteShell(children: Children) -> impl IntoView {
     }
 
     view! {
-        <a class="skip-link" href="#main">"跳转到正文"</a>
+        <a class="skip-link" href="#main">{move || locale.get().select("跳转到正文", "Skip to content")}</a>
         <div class="site-shell" style=move || format!("--sidebar-width: {}px", preferences.get().sidebar_width_px)>
-            <Sidebar viewport_width/>
+            <Sidebar viewport_width is_hydrated/>
             <div class="site-workspace">
-                <Topbar is_hydrated viewport_width is_drawer_open drawer trigger/>
+                <Topbar is_hydrated is_drawer_open drawer trigger/>
                 <div class="mobile-fallback-nav">
-                    <SidebarNavigation mobile=true fallback=true/>
+                    <SidebarNavigation/>
                 </div>
                 <main id="main" class="site-content" tabindex="-1">{children()}</main>
                 <footer class="site-footer">
                     <div class="footer-top"><span class="footer-glyph" aria-hidden="true">"✳"</span><span>"KEEP BUILDING"<br/>"KEEP QUESTIONING."</span></div>
-                    <div class="footer-bottom"><span>"© 2026 MCB-SMART-BOY "<span class="footer-separator">"/"</span>" BUILT WITH RUST"</span><span><a href="/writing">"文章"</a><a href="/about">"关于"</a><a href="https://github.com/MCB-SMART-BOY" target="_blank" rel="noopener noreferrer">"GITHUB ↗"</a></span></div>
+                    <div class="footer-bottom"><span>"© 2026 MCB-SMART-BOY "<span class="footer-separator">"/"</span>" BUILT WITH RUST"</span><span><a href="/writing">{move || locale.get().writing()}</a><a href="/about">{move || locale.get().about()}</a><a href="https://github.com/MCB-SMART-BOY" target="_blank" rel="noopener noreferrer">"GITHUB ↗"</a></span></div>
                 </footer>
             </div>
         </div>
@@ -136,12 +150,12 @@ pub fn SiteShell(children: Children) -> impl IntoView {
             node_ref=drawer
             id="mobile-drawer"
             class="mobile-drawer"
-            aria-label="主导航"
+            aria-label=move || locale.get().select("主导航", "Main navigation")
             on:close=move |_| {
                 is_drawer_open.set(false);
                 #[cfg(feature = "hydrate")]
                 {
-                    if focus_main_after_close.get_untracked() {
+                    if focus_main_after_close.get_untracked() || viewport_width.get_untracked() >= SIDEBAR_MOBILE_BREAKPOINT_PX {
                         let main = web_sys::window().and_then(|window| window.document())
                             .and_then(|document| document.get_element_by_id("main"))
                             .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok());
@@ -177,11 +191,12 @@ pub fn SiteShell(children: Children) -> impl IntoView {
             }
         >
             <div class="drawer-panel">
-                <button class="drawer-close topbar-button" type="button" aria-label="关闭导航菜单" on:click=move |_| {
+                <button class="drawer-close topbar-button" type="button" aria-label=move || locale.get().select("关闭导航菜单", "Close navigation menu") on:click=move |_| {
                     #[cfg(feature = "hydrate")]
                     if let Some(dialog) = drawer.get_untracked() { dialog.close(); }
                 }><Icon kind=IconKind::Close/></button>
-                <SidebarNavigation mobile=true/>
+                <SidebarBrand is_hydrated is_desktop=false/>
+                <SidebarNavigation/>
             </div>
         </dialog>
     }

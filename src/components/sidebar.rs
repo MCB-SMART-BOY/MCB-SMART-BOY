@@ -3,7 +3,10 @@ use leptos_router::{components::A, hooks::use_location};
 
 #[cfg(feature = "hydrate")]
 use crate::preferences::persist_preferences;
-use crate::preferences::{SIDEBAR_CONTENT_MIN_PX, SIDEBAR_MAX_PX, SIDEBAR_MIN_PX, UiPreferences};
+use crate::{
+    locale::Locale,
+    preferences::{SIDEBAR_CONTENT_MIN_PX, SIDEBAR_MAX_PX, SIDEBAR_MIN_PX, UiPreferences},
+};
 
 use super::icons::{Icon, IconKind};
 
@@ -29,14 +32,48 @@ pub(super) fn save_preferences(preferences: UiPreferences) {
 }
 
 #[component]
-pub(super) fn SidebarNavigation(
-    #[prop(optional)] mobile: bool,
-    #[prop(optional)] fallback: bool,
-) -> impl IntoView {
-    let location = use_location();
+pub(super) fn SidebarBrand(is_hydrated: RwSignal<bool>, is_desktop: bool) -> impl IntoView {
+    let locale =
+        use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
     let preferences = use_context::<RwSignal<UiPreferences>>()
         .unwrap_or_else(|| RwSignal::new(UiPreferences::default()));
-    let is_collapsed = move || !mobile && preferences.get().is_sidebar_collapsed;
+    let label = move || {
+        if preferences.get().is_sidebar_collapsed {
+            locale.get().select("展开侧栏", "Expand sidebar")
+        } else {
+            locale.get().select("折叠侧栏", "Collapse sidebar")
+        }
+    };
+    view! {
+        <div class="sidebar-brand">
+            <A href="/" exact=true attr:class="brand" attr:aria-label=move || locale.get().select("MCB / LOG，返回首页", "MCB / LOG, return home")>
+                <span class="brand-mark" aria-hidden="true">"M"<span class="brand-mark-dot">"."</span></span>
+                <span class="brand-name" aria-hidden="true">"MCB"<span class="brand-name-muted">" / LOG"</span></span>
+            </A>
+            <Show when=move || is_desktop>
+                <button
+                    class="sidebar-collapse topbar-button"
+                    type="button"
+                    disabled=move || !is_hydrated.get()
+                    aria-controls="site-sidebar"
+                    aria-expanded=move || if preferences.get().is_sidebar_collapsed { "false" } else { "true" }
+                    aria-label=label
+                    title=label
+                    on:click=move |_| {
+                        preferences.update(|value| value.is_sidebar_collapsed = !value.is_sidebar_collapsed);
+                        save_preferences(preferences.get_untracked());
+                    }
+                ><Icon kind=IconKind::Sidebar/></button>
+            </Show>
+        </div>
+    }
+}
+
+#[component]
+pub(super) fn SidebarNavigation() -> impl IntoView {
+    let location = use_location();
+    let locale =
+        use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
     let home_active = move || location.pathname.get() == "/";
     let writing_active = move || {
         let pathname = location.pathname.get();
@@ -45,36 +82,29 @@ pub(super) fn SidebarNavigation(
     let focus_active = move || location.pathname.get() == "/focus";
     let about_active = move || location.pathname.get() == "/about";
     view! {
-        <Show when=move || !fallback>
-            <div class="sidebar-brand">
-                <A href="/" exact=true attr:class="brand" attr:aria-label="MCB / LOG，返回首页">
-                    <span class="brand-mark" aria-hidden="true">"M"<span class="brand-mark-dot">"."</span></span>
-                    <span class="brand-name" aria-hidden="true">"MCB"<span class="brand-name-muted">" / LOG"</span></span>
-                </A>
-            </div>
-        </Show>
-        <nav class="sidebar-nav" aria-label="主导航">
-            <A href="/" exact=true attr:class=move || if home_active() { "sidebar-link is-active" } else { "sidebar-link" } attr:title="首页" attr:aria-label="首页">
-                <Icon kind=IconKind::Home/><span class="sidebar-link-label">"首页"</span>
+        <nav class="sidebar-nav" aria-label=move || locale.get().select("主导航", "Main navigation")>
+            <A href="/" exact=true attr:class=move || if home_active() { "sidebar-link is-active" } else { "sidebar-link" } attr:title=move || locale.get().home() attr:aria-label=move || locale.get().home()>
+                <Icon kind=IconKind::Home/><span class="sidebar-link-label">{move || locale.get().home()}</span>
             </A>
-            <A href="/writing" attr:class=move || if writing_active() { "sidebar-link is-active" } else { "sidebar-link" } attr:title="文章" attr:aria-label="文章">
-                <Icon kind=IconKind::Writing/><span class="sidebar-link-label">"文章"</span>
+            <A href="/writing" attr:class=move || if writing_active() { "sidebar-link is-active" } else { "sidebar-link" } attr:title=move || locale.get().writing() attr:aria-label=move || locale.get().writing()>
+                <Icon kind=IconKind::Writing/><span class="sidebar-link-label">{move || locale.get().writing()}</span>
             </A>
-            <A href="/focus" exact=true attr:class=move || if focus_active() { "sidebar-link is-active" } else { "sidebar-link" } attr:title="关注领域" attr:aria-label="关注领域">
-                <Icon kind=IconKind::Focus/><span class="sidebar-link-label">"关注领域"</span>
+            <A href="/focus" exact=true attr:class=move || if focus_active() { "sidebar-link is-active" } else { "sidebar-link" } attr:title=move || locale.get().focus() attr:aria-label=move || locale.get().focus()>
+                <Icon kind=IconKind::Focus/><span class="sidebar-link-label">{move || locale.get().focus()}</span>
             </A>
-            <A href="/about" exact=true attr:class=move || if about_active() { "sidebar-link is-active" } else { "sidebar-link" } attr:title="关于" attr:aria-label="关于">
-                <Icon kind=IconKind::About/><span class="sidebar-link-label">"关于"</span>
+            <A href="/about" exact=true attr:class=move || if about_active() { "sidebar-link is-active" } else { "sidebar-link" } attr:title=move || locale.get().about() attr:aria-label=move || locale.get().about()>
+                <Icon kind=IconKind::About/><span class="sidebar-link-label">{move || locale.get().about()}</span>
             </A>
         </nav>
-        <span class="sr-only" aria-live="polite">{move || if is_collapsed() { "侧栏已折叠" } else { "侧栏已展开" }}</span>
     }
 }
 
 #[component]
-pub(super) fn Sidebar(viewport_width: RwSignal<u16>) -> impl IntoView {
+pub(super) fn Sidebar(viewport_width: RwSignal<u16>, is_hydrated: RwSignal<bool>) -> impl IntoView {
     let preferences = use_context::<RwSignal<UiPreferences>>()
         .unwrap_or_else(|| RwSignal::new(UiPreferences::default()));
+    let locale =
+        use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
     let drag = RwSignal::new(None::<DragState>);
     let handle = NodeRef::<html::Div>::new();
     let is_dragging = move || drag.get().is_some();
@@ -99,19 +129,20 @@ pub(super) fn Sidebar(viewport_width: RwSignal<u16>) -> impl IntoView {
     };
     view! {
         <aside id="site-sidebar" class="site-sidebar" class:is-collapsed=move || preferences.get().is_sidebar_collapsed>
+            <SidebarBrand is_hydrated is_desktop=true/>
             <SidebarNavigation/>
             <div
                 node_ref=handle
                 class="sidebar-resizer"
                 role="separator"
                 tabindex="0"
-                aria-label="调整侧栏宽度"
+                aria-label=move || locale.get().select("调整侧栏宽度", "Resize sidebar")
                 aria-orientation="vertical"
                 aria-controls="site-sidebar"
                 aria-valuemin=SIDEBAR_MIN_PX
                 aria-valuemax=maximum
                 aria-valuenow=current_width
-                aria-valuetext=move || format!("{} 像素", current_width())
+                aria-valuetext=move || format!("{} {}", current_width(), locale.get().select("像素", "pixels"))
                 class:is-dragging=is_dragging
                 on:pointerdown=move |event| {
                     #[cfg(feature = "hydrate")]
