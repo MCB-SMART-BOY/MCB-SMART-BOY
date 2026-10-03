@@ -1,6 +1,6 @@
 # MCB / LOG 项目上下文
 
-本项目是 Rust 全栈个人博客 demo；用户可见的流程：首页 → 文章归档或关注方向 → 文章阅读 / 关于。展示内容为示例，并非作者已发布成果。根目录 `README.md` 前段是 GitHub 用户主页，后段是博客 demo 入门与设计参考；本文件负责代码事实和维护路由。
+本项目是 Rust 全栈个人博客 demo；用户可见的流程：首页 → 文章归档或关注方向 → 文章阅读 / 关于。三篇文章为示例，并非作者已发布成果。根目录 `README.md` 仅用于 GitHub 用户自我介绍，不承载博客介绍、示例文章声明或折叠的项目手册。个人资料以用户已有介绍为准，不虚构履历与成果；视觉沿用博客的蓝白／紫黑配色与几何排版，但不沿用博客品牌。本文件负责博客运行说明、代码事实、设计参考和维护路由。
 
 ## 代码与职责
 
@@ -14,6 +14,7 @@
 | Markdown HTML 安全边界 | `src/markdown.rs` |
 | 色彩和布局 / 本地图标 | `assets/site.css` / `public/favicon.svg` |
 | Rust 和前端 WASM 构建 / 依赖审计 | `Cargo.toml`、`Cargo.lock`、`dev.sh`、`validate.sh`、`deny.toml` |
+| GitHub 用户自我介绍 / 本地横幅 | `README.md` / `.github/assets/profile-light.svg`、`.github/assets/profile-dark.svg` |
 
 架构为 Axum HTTP + Leptos SSR/hydrate（浏览器端 Rust/WASM）；不需要 Node/Bun 或外部页面资产。移动端 SSR 在 WASM 不可用时仍提供真实链接导航；动态主题、折叠、宽度拖动与移动抽屉需要 hydration。首屏主题与侧栏设定由服务端读取 `mcb-ui` cookie；所有来自 cookie 的值须受 `src/preferences.rs` 限制，客户端更新同一字段，避免 SSR/hydration 不一致。Markdown 仅收录仓库内容，未暴露投稿接口；原始 HTML 和不安全链接不被作为可执行页面内容接受。
 
@@ -21,9 +22,40 @@
 
 `deny.toml` 仅允许已核对的许可证，并针对 Leptos 0.8 间接依赖的 `paste`、`proc-macro-error2` 停止维护通告记录逐项例外（当前依赖链无可直接升级的修补版本）。项目维护者在 2027-01-03 前及升级框架后复核并清理不再需要的例外，不可把它们解释为不存在安全风险。
 
-## 本地流程与验证
+## 项目内工具链与启动
 
-1. 首次从项目根运行 `./dev.sh setup`；`run/` 储存 toolchain、Cargo registry、编译与缓存产物，脚本刻意不修改系统工具链。仅经 `./dev.sh` 调用 Cargo/Rustup；直接调用不提供隔离保证。
-2. 先运行直接相关的功能和 HTTP 场景、浏览器实际交互，再运行项目验证器 `./validate.sh`（WASM typecheck、SSR/WASM 构建、Rust 测试）。
-3. 最后运行通用质量门：`./dev.sh -- "$HOME/.omp/agent/validate.sh"`；其与项目 validator 相互独立。适用 gate 无法通过时明确记录原因，不把跳过当作通过。
-4. 除非用户明确授权，不提交、推送、部署或改动个人主页中已核实的资料。用户明确同意的依赖/SSR 迁移取代旧 Askama 模板；不保留旧端点或重复渲染路径。
+需要系统已有的 `rustup` 命令、可用网络及本机编译依赖。`./dev.sh` 将 Rust 1.99.0、WASM 目标、cargo-leptos 0.3.10、wasm-bindgen-cli 0.2.129、Cargo 注册表、编译产物与临时文件安装或生成在仓库的 `run/`；不安装 Bun/Node，不重装或移动系统工具。首次准备时间和空间取决于网络及本机编译环境。
+
+```sh
+./dev.sh setup
+./dev.sh leptos build
+./dev.sh run --locked
+```
+
+打开 `http://127.0.0.1:3000`。换端口：`BLOG_ADDR=127.0.0.1:4000 ./dev.sh run --locked`；开发时可运行 `./dev.sh leptos watch`。服务默认仅监听回环地址；不要在未配置 TLS 和部署安全边界前公开暴露。停止服务使用 `Ctrl+C`。
+
+**本项目所有 Cargo 与 Rustup 命令均经 `./dev.sh` 执行**，例如 `./dev.sh test --locked`、`./dev.sh fmt -- --check`、`./dev.sh clippy --all-targets -- -D warnings`、`./dev.sh -- rustc --version`。脚本隔离 `CARGO_HOME`、`RUSTUP_HOME`、`CARGO_TARGET_DIR`、XDG 数据/缓存/配置、`TMPDIR`、Trivy 缓存、Leptos 输出和构建器工具安装目录到 `run/`；直接执行 `cargo`/`rustup` 或外部浏览器不受约束，可能写入用户目录。`run/` 和 `.env` 已忽略，不会提交编译产物和本地设置。其他工具可用 `./dev.sh -- <命令>` 继承隔离变量。
+
+## 验证与维护
+
+1. 先运行直接相关的功能和 HTTP 场景、浏览器实际交互，再运行项目验证器 `./validate.sh`（WASM typecheck、SSR/WASM 构建、Rust 测试）。
+2. 最后运行通用质量门：`./dev.sh -- "$HOME/.omp/agent/validate.sh"`；其与项目 validator 相互独立。适用 gate 无法通过时明确记录原因，不把跳过当作通过。
+3. 除非用户明确授权，不提交、推送、部署或改动个人主页中已核实的资料。用户明确同意的依赖/SSR 迁移取代旧 Askama 模板；不保留旧端点或重复渲染路径。
+
+## 页面与内容
+
+| 路径 | 内容 |
+|---|---|
+| `/` | 首页、最新文章和入口 |
+| `/writing` | 文章归档 |
+| `/writing/:slug` | 独立文章；未知 slug 为 404 |
+| `/focus` | 三个关注方向 |
+| `/about` | 作者与 demo 说明 |
+
+新增文章时在 `src/content.rs` 维护文章顺序、slug、日期及摘要，在 `content/posts/` 增加正文并重建应用；正文随 Rust 二进制编译，页面更新不依赖在线数据库。首次 HTTP 响应包含可阅读的服务端 HTML；hydration 成功后客户端导航与偏好交互可用。桌面侧栏切页后将键盘焦点移到正文，移动抽屉关闭后焦点返回触发按钮或目标正文。
+
+博客采用浅色纸感与夜间科幻两套主题；侧栏支持折叠、拖动宽度和移动端抽屉。无后台、登录、评论、在线编辑、RSS 或部署配置。正式发布前需替换示例文章、审阅仓库内容，并评估部署安全、浏览器兼容性和可访问性。
+
+## 设计来源
+
+调研了 [Matklad](https://matklad.github.io/) 的单栏文章、[Anthony Fu](https://antfu.me/posts) 的列表密度、[Dan Luu](https://danluu.com/) 的长文归档、[Tarik Karahodžić](https://www.tarikkarahodzic.dev/projects/personal-site) 的留白，以及 [Stefan Vitasović](https://tympanus.net/codrops/2025/03/05/case-study-stefan-vitasovic-portfolio-2025/) 的几何构图。博客以本地 CSS 构图、大字和清晰的文章层级呈现，不复制第三方素材或加入重型动画，尊重系统减少动效偏好。

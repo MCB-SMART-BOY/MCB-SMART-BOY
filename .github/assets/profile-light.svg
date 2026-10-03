@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
-  <title id="title">MCB / LOG</title>
-  <desc id="desc">Light blue and white editorial banner with geometric orbits</desc>
+  <title id="title">MCB-SMART-BOY — Stay curious</title>
+  <desc id="desc">蓝白配色的个人介绍横幅，以轨道几何图案呼应系统探索。</desc>
   <rect width="1200" height="320" fill="#f7faff"/>
   <rect x="1" y="1" width="1198" height="318" fill="none" stroke="#cbd9ee" stroke-width="2"/>
   <path d="M40 110h1120M40 268h1120" stroke="#cbd9ee"/>
   <rect x="40" y="28" width="64" height="64" fill="#245dde"/>
   <text x="52" y="75" fill="#ffffff" font-family="ui-monospace,monospace" font-size="41" font-weight="bold">M.</text>
-  <text x="124" y="68" fill="#536681" font-family="ui-monospace,monospace" font-size="20" letter-spacing="2">PERSONAL SITE / RUST / SYSTEMS</text>
-  <text x="40" y="205" fill="#14243c" font-family="ui-monospace,monospace" font-size="78" font-weight="bold" letter-spacing="-5">MCB / LOG</text>
-  <text x="44" y="299" fill="#536681" font-family="ui-monospace,monospace" font-size="18" letter-spacing="2">BUILD   ·   LEARN   ·   SHARE</text>
+  <text x="124" y="68" fill="#536681" font-family="ui-monospace,monospace" font-size="26" letter-spacing="2">MCB-SMART-BOY</text>
+  <text x="40" y="205" fill="#14243c" font-family="ui-monospace,monospace" font-size="70" font-weight="bold" letter-spacing="-3">STAY CURIOUS.</text>
+  <text x="44" y="299" fill="#536681" font-family="ui-monospace,monospace" font-size="24" letter-spacing="2">KEEP BUILDING.</text>
   <circle cx="1000" cy="187" r="102" fill="none" stroke="#cbd9ee" stroke-width="2"/>
   <circle cx="1000" cy="187" r="75" fill="none" stroke="#245dde" stroke-width="2"/>
   <circle cx="1000" cy="187" r="46" fill="#edf4ff" stroke="#cbd9ee" stroke-width="2"/>
