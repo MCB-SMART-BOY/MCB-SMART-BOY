@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="432" height="360" viewBox="-6 -6 432 360" role="img" aria-labelledby="title desc">
+  <title id="title">MCB 的日常开发环境</title>
+  <desc id="desc">fastfetch 风格的个人配置：NixOS 和 Garuda Linux；Rust 和 Python；Zed 和 Helix。不展示虚构的系统运行数据。</desc>
+  <defs><clipPath id="frame"><rect x="1" y="1" width="418" height="346" rx="14"/></clipPath></defs>
+  <style>text { font-family: "DejaVu Sans Mono", Consolas, monospace; }</style>
+  <g clip-path="url(#frame)">
+    <rect width="420" height="348" fill="#ffffff"/>
+    <path d="M0 0H420V48H0Z" fill="#edf4ff"/>
+    <path d="M0 48H420" stroke="#cbd9ee"/>
+    <circle cx="23" cy="25" r="4" fill="#245dde"/>
+    <circle cx="39" cy="25" r="4" fill="#245dde" opacity=".55"/>
+    <circle cx="55" cy="25" r="4" fill="#245dde" opacity=".25"/>
+    <text x="82" y="30" fill="#536681" font-size="14">~/about / fastfetch</text>
+    <text x="24" y="94" fill="#245dde" font-size="25">$ fastfetch</text>
+    <text x="24" y="138" fill="#14243c" font-size="24" font-weight="700">mcb@linux</text>
+    <path d="M24 154H396" stroke="#cbd9ee" stroke-dasharray="5 5"/>
+    <g fill="#536681" font-size="17">
+      <text x="24" y="194">OS</text><text x="24" y="236">LANG</text><text x="24" y="278">EDITOR</text>
+    </g>
+    <g fill="#14243c" font-size="23">
+      <text x="113" y="194">NixOS / Garuda</text>
+      <text x="113" y="236">Rust / Python</text>
+      <text x="113" y="278">Zed / Helix</text>
+    </g>
+    <rect x="24" y="307" width="22" height="15" rx="2" fill="#14243c"/>
+    <rect x="50" y="307" width="22" height="15" rx="2" fill="#536681"/>
+    <rect x="76" y="307" width="22" height="15" rx="2" fill="#245dde"/>
+    <rect x="102" y="307" width="22" height="15" rx="2" fill="#245dde" opacity=".65"/>
+    <rect x="128" y="307" width="22" height="15" rx="2" fill="#245dde" opacity=".3"/>
+    <text x="395" y="320" text-anchor="end" fill="#536681" font-size="14">MY DAILY SETUP</text>
+  </g>
+  <rect x="1" y="1" width="418" height="346" rx="14" fill="none" stroke="#cbd9ee" stroke-width="2"/>
+</svg>

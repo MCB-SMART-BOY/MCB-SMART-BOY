@@ -1,18 +1,58 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
-  <title id="title">MCB-SMART-BOY — Stay curious</title>
-  <desc id="desc">蓝白配色的个人介绍横幅，以轨道几何图案呼应系统探索。</desc>
-  <rect width="1200" height="320" fill="#f7faff"/>
-  <rect x="1" y="1" width="1198" height="318" fill="none" stroke="#cbd9ee" stroke-width="2"/>
-  <path d="M40 110h1120M40 268h1120" stroke="#cbd9ee"/>
-  <rect x="40" y="28" width="64" height="64" fill="#245dde"/>
-  <text x="52" y="75" fill="#ffffff" font-family="ui-monospace,monospace" font-size="41" font-weight="bold">M.</text>
-  <text x="124" y="68" fill="#536681" font-family="ui-monospace,monospace" font-size="26" letter-spacing="2">MCB-SMART-BOY</text>
-  <text x="40" y="205" fill="#14243c" font-family="ui-monospace,monospace" font-size="70" font-weight="bold" letter-spacing="-3">STAY CURIOUS.</text>
-  <text x="44" y="299" fill="#536681" font-family="ui-monospace,monospace" font-size="24" letter-spacing="2">KEEP BUILDING.</text>
-  <circle cx="1000" cy="187" r="102" fill="none" stroke="#cbd9ee" stroke-width="2"/>
-  <circle cx="1000" cy="187" r="75" fill="none" stroke="#245dde" stroke-width="2"/>
-  <circle cx="1000" cy="187" r="46" fill="#edf4ff" stroke="#cbd9ee" stroke-width="2"/>
-  <circle cx="1000" cy="187" r="11" fill="#245dde"/>
-  <circle cx="1063" cy="146" r="8" fill="#245dde"/>
-  <path d="M881 187h238M1000 68v238" stroke="#cbd9ee" stroke-dasharray="4 8"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="340" viewBox="0 0 960 340" role="img" aria-labelledby="title desc">
+  <title id="title">MCB-SMART-BOY — Stay curious. Keep building.</title>
+  <desc id="desc">蓝白色个人主页。终端问候、轨道与芯片图形，表达对代码和系统的好奇；减少动态效果时保持静态。</desc>
+  <defs>
+    <linearGradient id="surface" x2="1" y2="1">
+      <stop stop-color="#f7faff"/><stop offset="1" stop-color="#e8f0ff"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop stop-color="#245dde" stop-opacity=".16"/><stop offset="1" stop-color="#245dde" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="core" x2="1" y2="1">
+      <stop stop-color="#ffffff"/><stop offset="1" stop-color="#cbd9ee"/>
+    </linearGradient>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M28 0H0V28" fill="none" stroke="#245dde" stroke-opacity=".08"/>
+    </pattern>
+    <clipPath id="frame"><rect x="1" y="1" width="958" height="338" rx="18"/></clipPath>
+  </defs>
+  <style>
+    text { font-family: "DejaVu Sans Mono", Consolas, monospace; }
+    #orbit { transform-origin: 766px 181px; animation: orbit 36s linear infinite; }
+    #cursor { animation: blink 1.6s step-end infinite; }
+    @keyframes orbit { to { transform: rotate(360deg); } }
+    @keyframes blink { 50% { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { #orbit, #cursor { animation: none; } }
+  </style>
+  <g clip-path="url(#frame)">
+    <rect width="960" height="340" fill="url(#surface)"/>
+    <rect x="554" width="406" height="340" fill="url(#grid)"/>
+    <ellipse cx="770" cy="180" rx="230" ry="210" fill="url(#glow)"/>
+    <path d="M0 51H960M0 292H960" stroke="#cbd9ee"/>
+    <circle cx="29" cy="27" r="4" fill="#245dde"/>
+    <text x="43" y="32" fill="#536681" font-size="14" letter-spacing="2">MCB / PERSONAL SPACE</text>
+    <text x="931" y="32" text-anchor="end" fill="#536681" font-size="13" letter-spacing="1">CODE · SYSTEMS · CURIOSITY</text>
+    <text x="30" y="112" fill="#245dde" font-size="23">&gt; hello, world</text>
+    <text x="26" y="183" fill="#14243c" font-size="57" font-weight="700" letter-spacing="-3">MCB-SMART-BOY</text>
+    <text x="30" y="231" fill="#245dde" font-size="31" font-weight="700" letter-spacing="1">STAY CURIOUS.</text>
+    <text x="31" y="266" fill="#536681" font-size="17">keep learning. keep building.</text>
+    <rect id="cursor" x="331" y="251" width="9" height="18" rx="1" fill="#245dde"/>
+    <g fill="none" stroke="#245dde">
+      <circle cx="766" cy="181" r="110" stroke-opacity=".22"/>
+      <circle cx="766" cy="181" r="86" stroke-opacity=".3" stroke-dasharray="2 8"/>
+      <ellipse cx="766" cy="181" rx="142" ry="48" transform="rotate(-32 766 181)" stroke-opacity=".55"/>
+      <ellipse cx="766" cy="181" rx="142" ry="48" transform="rotate(32 766 181)" stroke-opacity=".25"/>
+      <path d="M604 108H638L665 135M872 227L899 254H943M598 247H629L653 223" stroke-opacity=".45"/>
+    </g>
+    <g id="orbit" fill="#245dde">
+      <circle cx="876" cy="181" r="5"/><circle cx="656" cy="181" r="3" opacity=".55"/>
+    </g>
+    <path d="M766 108L829 144V217L766 253L703 217V144Z" fill="url(#core)" stroke="#245dde" stroke-opacity=".65"/>
+    <path d="M766 121L817 151V210L766 239L715 210V151Z" fill="none" stroke="#245dde" stroke-opacity=".25"/>
+    <text x="768" y="204" text-anchor="middle" fill="#245dde" font-size="62" font-weight="700" letter-spacing="-5">M.</text>
+    <circle cx="604" cy="108" r="3" fill="#245dde"/><circle cx="943" cy="254" r="3" fill="#245dde"/>
+    <text x="30" y="322" fill="#536681" font-size="14" letter-spacing="2">RUST / PYTHON / LINUX</text>
+    <text x="931" y="322" text-anchor="end" fill="#536681" font-size="14" letter-spacing="2">LEARN → BUILD → REPEAT</text>
+  </g>
+  <rect x="1" y="1" width="958" height="338" rx="18" fill="none" stroke="#cbd9ee" stroke-width="2"/>
 </svg>
