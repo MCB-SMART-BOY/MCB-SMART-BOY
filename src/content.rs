@@ -1,0 +1,48 @@
+pub(crate) struct Post {
+    pub(crate) slug: &'static str,
+    pub(crate) title: &'static str,
+    pub(crate) summary: &'static str,
+    pub(crate) date: &'static str,
+    pub(crate) iso_date: &'static str,
+    pub(crate) category: &'static str,
+    pub(crate) reading_time: &'static str,
+    pub(crate) index: &'static str,
+    pub(crate) body: &'static str,
+}
+
+// Demonstration content only; these are not presented as the author's published work.
+pub(crate) const POSTS: [Post; 3] = [
+    Post {
+        slug: "small-systems",
+        title: "把系统做小，是一种工程能力",
+        summary: "从问题本身出发，去掉不需要的层，给复杂度一个进入系统的理由。",
+        date: "10.03 / 2026",
+        iso_date: "2026-10-03",
+        category: "SYSTEMS",
+        reading_time: "3 MIN READ",
+        index: "01",
+        body: include_str!("../content/posts/small-systems.md"),
+    },
+    Post {
+        slug: "rust-web-notes",
+        title: "用 Rust 写一个能读的网页",
+        summary: "服务端生成内容、保留原生导航，先让文字在任何设备上都可以被读到。",
+        date: "09.28 / 2026",
+        iso_date: "2026-09-28",
+        category: "RUST / WEB",
+        reading_time: "4 MIN READ",
+        index: "02",
+        body: include_str!("../content/posts/rust-web-notes.md"),
+    },
+    Post {
+        slug: "notes-on-learning",
+        title: "保持一份公开的实验记录",
+        summary: "记录假设、过程和偏差，而不只是漂亮的最终结果。",
+        date: "09.12 / 2026",
+        iso_date: "2026-09-12",
+        category: "FIELD NOTES",
+        reading_time: "2 MIN READ",
+        index: "03",
+        body: include_str!("../content/posts/notes-on-learning.md"),
+    },
+];

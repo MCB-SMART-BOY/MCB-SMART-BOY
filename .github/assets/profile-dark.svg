@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
+  <title id="title">MCB / LOG</title>
+  <desc id="desc">Dark purple editorial banner with geometric orbits</desc>
+  <rect width="1200" height="320" fill="#09070f"/>
+  <rect x="1" y="1" width="1198" height="318" fill="none" stroke="#40304f" stroke-width="2"/>
+  <path d="M40 110h1120M40 268h1120" stroke="#40304f"/>
+  <rect x="40" y="28" width="64" height="64" fill="#b89aff"/>
+  <text x="52" y="75" fill="#10091c" font-family="ui-monospace,monospace" font-size="41" font-weight="bold">M.</text>
+  <text x="124" y="68" fill="#b1a2c7" font-family="ui-monospace,monospace" font-size="20" letter-spacing="2">PERSONAL SITE / RUST / SYSTEMS</text>
+  <text x="40" y="205" fill="#f2ecff" font-family="ui-monospace,monospace" font-size="78" font-weight="bold" letter-spacing="-5">MCB / LOG</text>
+  <text x="44" y="299" fill="#b1a2c7" font-family="ui-monospace,monospace" font-size="18" letter-spacing="2">BUILD   ·   LEARN   ·   SHARE</text>
+  <circle cx="1000" cy="187" r="102" fill="none" stroke="#40304f" stroke-width="2"/>
+  <circle cx="1000" cy="187" r="75" fill="none" stroke="#b89aff" stroke-width="2"/>
+  <circle cx="1000" cy="187" r="46" fill="#1b142b" stroke="#40304f" stroke-width="2"/>
+  <circle cx="1000" cy="187" r="11" fill="#b89aff"/>
+  <circle cx="1063" cy="146" r="8" fill="#b89aff"/>
+  <path d="M881 187h238M1000 68v238" stroke="#40304f" stroke-dasharray="4 8"/>
+</svg>

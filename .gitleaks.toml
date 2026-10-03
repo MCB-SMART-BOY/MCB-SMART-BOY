@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated Cargo caches and build artifacts; scan project sources instead"
+paths = [
+  '''(^|[/\\])target[/\\]''',
+  '''(^|[/\\])run[/\\]''',
+]

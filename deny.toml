@@ -1,0 +1,14 @@
+[licenses]
+allow = ["Apache-2.0", "MIT", "BSD-3-Clause", "Unicode-3.0", "CC0-1.0", "Zlib", "BSL-1.0"]
+include-dev = true
+
+[licenses.private]
+ignore = true
+
+[advisories]
+# Project maintainer: reassess these transitive exceptions by 2027-01-03.
+ignore = [
+  { id = "RUSTSEC-2024-0436", reason = "paste is transitive through Leptos 0.8; no patched version in the current dependency graph" },
+  { id = "RUSTSEC-2026-0173", reason = "proc-macro-error2 is transitive through Leptos 0.8; no patched version in the current dependency graph" },
+]
+unused-ignored-advisory = "deny"
