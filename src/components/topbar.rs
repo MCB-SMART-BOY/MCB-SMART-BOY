@@ -48,22 +48,21 @@ fn MobileDrawerButton(
 }
 
 #[component]
-fn LanguageSelect(is_hydrated: RwSignal<bool>) -> impl IntoView {
+fn LanguageToggle(is_hydrated: RwSignal<bool>) -> impl IntoView {
     let locale =
         use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
     let has_save_error = RwSignal::new(false);
     view! {
         <div class="language-action">
-            <label class="sr-only" for="topbar-language">
-                {move || locale.get().select("界面语言", "Interface language")}
-            </label>
-            <select id="topbar-language" class="topbar-language"
+            <button class="topbar-button topbar-language" type="button"
                 disabled=move || !is_hydrated.get()
-                on:change=move |event| {
-                    let next = match event_target_value(&event).as_str() {
-                        "zh-CN" => Locale::ZhCn,
-                        "en" => Locale::En,
-                        _ => return,
+                aria-label=move || locale.get().select("切换到英文", "Switch to Chinese")
+                title=move || locale.get().select("切换到英文", "Switch to Chinese")
+                on:click=move |_| {
+                    let next = if locale.get_untracked() == Locale::ZhCn {
+                        Locale::En
+                    } else {
+                        Locale::ZhCn
                     };
                     locale.set(next);
                     #[cfg(feature = "hydrate")]
@@ -79,10 +78,7 @@ fn LanguageSelect(is_hydrated: RwSignal<bool>) -> impl IntoView {
                         }
                     }
                 }
-            >
-                <option value="zh-CN" selected=move || locale.get() == Locale::ZhCn>"简中"</option>
-                <option value="en" selected=move || locale.get() == Locale::En>"EN"</option>
-            </select>
+            >{move || locale.get().select("EN", "中")}</button>
             <span class="language-error" role="status" aria-live="polite">
                 {move || if has_save_error.get() {
                     locale.get().select(
@@ -126,9 +122,9 @@ fn ThemeButton(is_hydrated: RwSignal<bool>) -> impl IntoView {
             }
         >
             {move || if is_dark() {
-                view! { <Icon kind=IconKind::Sun/> }.into_any()
-            } else {
                 view! { <Icon kind=IconKind::Moon/> }.into_any()
+            } else {
+                view! { <Icon kind=IconKind::Sun/> }.into_any()
             }}
         </button>
     }
@@ -149,7 +145,7 @@ pub(super) fn Topbar(
             <span class="topbar-brand">"MCB-SMART-BOY"</span>
             <MobileDrawerButton is_hydrated is_drawer_open drawer trigger/>
             <div class="topbar-actions">
-                <LanguageSelect is_hydrated/>
+                <LanguageToggle is_hydrated/>
                 <ThemeButton is_hydrated/>
                 <a class="topbar-github" href="https://github.com/MCB-SMART-BOY"
                     target="_blank" rel="noopener noreferrer"

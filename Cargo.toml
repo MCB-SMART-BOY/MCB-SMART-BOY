@@ -24,7 +24,7 @@ pulldown-cmark = "0.13"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"], optional = true }
 wasm-bindgen = { version = "=0.2.129", optional = true }
 wasm-bindgen-futures = { version = "=0.4.79", optional = true }
-web-sys = { version = "0.3", features = ["Window", "Document", "HtmlDocument", "Element", "HtmlElement", "HtmlDialogElement", "HtmlButtonElement", "HtmlDivElement", "HtmlInputElement", "HtmlMetaElement", "MediaQueryList", "CssStyleDeclaration", "DomTokenList", "PointerEvent", "KeyboardEvent", "MouseEvent", "Event", "EventTarget", "Location", "Navigator", "Clipboard", "ShareData", "DomException", "Node", "console"], optional = true }
+web-sys = { version = "0.3", features = ["Window", "Document", "HtmlDocument", "Element", "HtmlElement", "HtmlDialogElement", "HtmlButtonElement", "HtmlDivElement", "HtmlInputElement", "HtmlMetaElement", "MediaQueryList", "CssStyleDeclaration", "DomTokenList", "DomRect", "AnimationEvent", "PointerEvent", "KeyboardEvent", "MouseEvent", "Event", "EventTarget", "Location", "Navigator", "Clipboard", "ShareData", "DomException", "Node", "FocusOptions", "console"], optional = true }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
@@ -33,6 +33,10 @@ tower = { version = "0.5", features = ["util"] }
 default = ["ssr"]
 ssr = ["dep:axum", "dep:tokio", "dep:leptos_axum", "leptos/ssr", "leptos_meta/ssr", "leptos_router/ssr"]
 hydrate = ["leptos/hydrate", "dep:wasm-bindgen", "dep:wasm-bindgen-futures", "dep:js-sys", "dep:web-sys", "dep:console_error_panic_hook"]
+
+[profile.dev]
+# Full Leptos monomorphization can exceed the linker's 4 GiB debug-section limit.
+debug = 1
 
 [package.metadata.leptos]
 output-name = "mcb-smart-boy"

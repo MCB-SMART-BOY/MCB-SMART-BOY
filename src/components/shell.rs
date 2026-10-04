@@ -1,13 +1,15 @@
 use leptos::{html, prelude::*};
 
-#[cfg(feature = "hydrate")]
-use crate::preferences::SIDEBAR_MOBILE_BREAKPOINT_PX;
-use crate::{locale::Locale, preferences::UiPreferences};
+use crate::{
+    locale::Locale,
+    preferences::{SIDEBAR_MOBILE_BREAKPOINT_PX, UiPreferences},
+};
 #[cfg(feature = "hydrate")]
 use leptos_router::hooks::use_location;
 
 use super::{
     icons::{Icon, IconKind},
+    reading_navigation::ReadingNavigation,
     sidebar::{Sidebar, SidebarBrand, SidebarNavigation},
     topbar::Topbar,
 };
@@ -18,7 +20,14 @@ use wasm_bindgen::JsCast;
 #[cfg(feature = "hydrate")]
 fn focus_element(element: Option<web_sys::HtmlElement>) {
     if let Some(element) = element {
-        let _ = element.focus();
+        let options = web_sys::FocusOptions::new();
+        options.set_prevent_scroll(true);
+        if let Err(source) = element.focus_with_options(&options) {
+            web_sys::console::error_2(
+                &"Failed to focus sidebar navigation destination".into(),
+                &source,
+            );
+        }
     }
 }
 #[cfg(feature = "hydrate")]
@@ -27,7 +36,7 @@ fn focus_main_after_sidebar_navigation() {
         return;
     };
     if !document
-        .query_selector(".site-sidebar .sidebar-nav a:focus")
+        .query_selector(".site-sidebar a[href]:not([data-sidebar-level]):focus")
         .ok()
         .flatten()
         .is_some()
@@ -65,6 +74,8 @@ fn sync_document_locale(locale: Locale) {
     }
 }
 
+// Keep the shell's SSR tree and drawer lifecycle under one reactive owner;
+// this component intentionally exceeds the helper-function length limit.
 #[component]
 pub fn SiteShell(children: Children) -> impl IntoView {
     let preferences = use_context::<RwSignal<UiPreferences>>()
@@ -77,6 +88,10 @@ pub fn SiteShell(children: Children) -> impl IntoView {
     let focus_main_after_close = RwSignal::new(false);
     let drawer = NodeRef::<html::Dialog>::new();
     let trigger = NodeRef::<html::Button>::new();
+    let mobile_reading_request = RwSignal::new(0_u64);
+    let is_mobile_visible = Signal::derive(move || {
+        viewport_width.get() < SIDEBAR_MOBILE_BREAKPOINT_PX && is_drawer_open.get()
+    });
 
     #[cfg(feature = "hydrate")]
     {
@@ -90,6 +105,32 @@ pub fn SiteShell(children: Children) -> impl IntoView {
             path
         });
         Effect::new(move || sync_document_preferences(preferences.get()));
+        Effect::new(move || {
+            let is_collapsed = preferences.get().is_sidebar_collapsed;
+            let is_mobile = viewport_width.get() < SIDEBAR_MOBILE_BREAKPOINT_PX;
+            let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+                return;
+            };
+            let hidden_focus = if is_mobile {
+                document.query_selector(".site-sidebar :focus")
+            } else if is_collapsed {
+                document.query_selector(".site-sidebar .reading-navigation :focus, .site-sidebar .sidebar-resizer:focus")
+            } else {
+                return;
+            };
+            if hidden_focus.ok().flatten().is_some() {
+                let replacement = if is_mobile {
+                    trigger.get_untracked().map(|element| element.into())
+                } else {
+                    document
+                        .query_selector(".site-sidebar .brand-expand")
+                        .ok()
+                        .flatten()
+                        .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok())
+                };
+                focus_element(replacement);
+            }
+        });
         Effect::new(move || sync_document_locale(locale.get()));
         Effect::new(move || {
             if let Some(window) = web_sys::window() {
@@ -132,12 +173,33 @@ pub fn SiteShell(children: Children) -> impl IntoView {
 
     view! {
         <a class="skip-link" href="#main">{move || locale.get().select("跳转到正文", "Skip to content")}</a>
-        <div class="site-shell" style=move || format!("--sidebar-width: {}px", preferences.get().sidebar_width_px)>
+        <div class="site-shell" style=move || format!("--sidebar-width: {}px", preferences.get().sidebar_width_px)
+            on:click=move |event| {
+                #[cfg(feature = "hydrate")]
+                {
+                    if event.button() != 0 || event.ctrl_key() || event.meta_key() || event.shift_key() || event.alt_key() {
+                        return;
+                    }
+                    let is_navigation_link = event.target()
+                        .and_then(|target| target.dyn_into::<web_sys::Element>().ok())
+                        .and_then(|target| target.closest(".site-sidebar a[href]:not([data-sidebar-level])").ok().flatten())
+                        .and_then(|link| link.get_attribute("href"))
+                        .is_some_and(|href| href.starts_with('/'));
+                    if is_navigation_link {
+                        let main = web_sys::window().and_then(|window| window.document())
+                            .and_then(|document| document.get_element_by_id("main"))
+                            .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok());
+                        focus_element(main);
+                    }
+                }
+                #[cfg(not(feature = "hydrate"))]
+                let _ = event;
+            }>
             <Sidebar viewport_width is_hydrated/>
             <div class="site-workspace">
                 <Topbar is_hydrated is_drawer_open drawer trigger/>
                 <div class="mobile-fallback-nav">
-                    <SidebarNavigation/>
+                    <SidebarNavigation show_writing_link=true/>
                 </div>
                 <main id="main" class="site-content" tabindex="-1">{children()}</main>
                 <footer class="site-footer">
@@ -178,7 +240,7 @@ pub fn SiteShell(children: Children) -> impl IntoView {
                     }
                     let is_internal_link = event.target()
                         .and_then(|target| target.dyn_into::<web_sys::Element>().ok())
-                        .and_then(|target| target.closest("a[href]").ok().flatten())
+                        .and_then(|target| target.closest("a[href]:not([data-sidebar-level])").ok().flatten())
                         .and_then(|link| link.get_attribute("href"))
                         .is_some_and(|href| href.starts_with('/'));
                     if is_internal_link {
@@ -196,7 +258,7 @@ pub fn SiteShell(children: Children) -> impl IntoView {
                     if let Some(dialog) = drawer.get_untracked() { dialog.close(); }
                 }><Icon kind=IconKind::Close/></button>
                 <SidebarBrand is_hydrated is_desktop=false/>
-                <SidebarNavigation/>
+                <ReadingNavigation is_hydrated is_visible=is_mobile_visible reading_request=mobile_reading_request/>
             </div>
         </dialog>
     }

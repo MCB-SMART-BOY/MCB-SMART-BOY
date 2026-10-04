@@ -9,7 +9,10 @@ use leptos_router::{
 use crate::{
     components::SiteShell,
     locale::Locale,
-    pages::{AboutPage, ArticlePage, FocusPage, HomePage, NotFoundPage, WritingPage},
+    pages::{
+        AboutPage, ArticlePage, BookPage, ChapterPage, FocusPage, HomePage, NotFoundPage,
+        WritingPage,
+    },
     preferences::UiPreferences,
 };
 #[cfg(feature = "ssr")]
@@ -83,6 +86,8 @@ pub fn App() -> impl IntoView {
                 <Routes fallback=NotFoundPage>
                     <Route path=StaticSegment("") view=HomePage ssr=SsrMode::Async/>
                     <Route path=path!("/writing") view=WritingPage ssr=SsrMode::Async/>
+                    <Route path=path!("/writing/books/:book_slug") view=BookPage ssr=SsrMode::Async/>
+                    <Route path=path!("/writing/books/:book_slug/chapters/:chapter_slug") view=ChapterPage ssr=SsrMode::Async/>
                     <Route path=path!("/writing/:slug") view=ArticlePage ssr=SsrMode::Async/>
                     <Route path=path!("/focus") view=FocusPage ssr=SsrMode::Async/>
                     <Route path=path!("/about") view=AboutPage ssr=SsrMode::Async/>

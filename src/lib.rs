@@ -5,6 +5,7 @@ mod locale;
 mod markdown;
 pub mod pages;
 pub mod preferences;
+mod reading;
 #[cfg(feature = "ssr")]
 pub mod server;
 
