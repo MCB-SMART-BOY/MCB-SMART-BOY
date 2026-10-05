@@ -4,6 +4,7 @@ use leptos_router::{components::A, hooks::use_location};
 #[cfg(feature = "hydrate")]
 use crate::preferences::persist_preferences;
 use crate::{
+    content::ROOT_DIRECTORY,
     locale::Locale,
     preferences::{
         SIDEBAR_CONTENT_MIN_PX, SIDEBAR_MAX_PX, SIDEBAR_MIN_PX, SIDEBAR_MOBILE_BREAKPOINT_PX,
@@ -321,7 +322,7 @@ pub(super) fn SidebarNavigation(show_writing_link: bool) -> impl IntoView {
                 <Icon kind=IconKind::Home/><span class="sidebar-link-label">{move || locale.get().home()}</span>
             </A>
             {show_writing_link.then(|| view! {
-                <A href="/writing" attr:class=move || if writing_active() { "sidebar-link is-active" } else { "sidebar-link" } attr:title=move || locale.get().writing() attr:aria-label=move || locale.get().writing()>
+                <A href=ROOT_DIRECTORY.path attr:class=move || if writing_active() { "sidebar-link is-active" } else { "sidebar-link" } attr:title=move || locale.get().writing() attr:aria-label=move || locale.get().writing()>
                     <Icon kind=IconKind::Writing/><span class="sidebar-link-label">{move || locale.get().writing()}</span>
                 </A>
             })}
@@ -373,13 +374,13 @@ pub(super) fn Sidebar(viewport_width: RwSignal<u16>, is_hydrated: RwSignal<bool>
     view! {
         <aside id="site-sidebar" class="site-sidebar" class:is-collapsed=move || preferences.get().is_sidebar_collapsed>
             <SidebarBrand is_hydrated is_desktop=true/>
-            <ReadingNavigation is_hydrated is_visible reading_request/>
+            <ReadingNavigation is_hydrated is_visible reading_request id_prefix="desktop"/>
             <div class="sidebar-icon-nav">
                 <SidebarNavigation show_writing_link=false/>
                 <div class="navigation-page-footer">
-                    <A href="/writing" attr:class="sidebar-link" attr:data-sidebar-level=""
-                        attr:aria-label=move || locale.get().select("文章 / 书籍", "Writing / Books")
-                        attr:title=move || locale.get().select("文章 / 书籍", "Writing / Books")
+                    <A href=ROOT_DIRECTORY.path attr:class="sidebar-link" attr:data-sidebar-level=""
+                        attr:aria-label=move || locale.get().select("文章目录", "Writing directory")
+                        attr:title=move || locale.get().select("文章目录", "Writing directory")
                         on:click=move |event| {
                             if event.button() != 0 || event.ctrl_key() || event.meta_key() || event.shift_key() || event.alt_key() {
                                 return;
@@ -388,7 +389,7 @@ pub(super) fn Sidebar(viewport_width: RwSignal<u16>, is_hydrated: RwSignal<bool>
                             save_preferences(preferences.get_untracked());
                             reading_request.update(|request| *request = request.wrapping_add(1));
                         }>
-                        <Icon kind=IconKind::Writing/><span class="sidebar-link-label">{move || locale.get().select("文章 / 书籍", "Writing / Books")}</span>
+                        <Icon kind=IconKind::Writing/><span class="sidebar-link-label">{move || locale.get().select("文章目录", "Writing directory")}</span>
                     </A>
                 </div>
             </div>

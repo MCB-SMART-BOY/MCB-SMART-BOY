@@ -4,14 +4,14 @@ use leptos_router::{NavigateOptions, hooks::use_navigate};
 use leptos_router::{components::A, hooks::use_location};
 
 use crate::{
-    content::{BOOKS, Book, Chapter, Post, find_post, find_post_location},
+    content::ROOT_DIRECTORY,
     locale::Locale,
-    reading::{ReadingRoute, build_chapter_path, resolve_reading_route},
+    reading::{ReadingRoute, resolve_reading_route},
 };
 
 use super::{
-    article_outline::SidebarOutline,
     icons::{Icon, IconKind},
+    reading_directory::ReadingTree,
     sidebar::SidebarNavigation,
 };
 
@@ -26,14 +26,11 @@ use wasm_bindgen::{JsCast, closure::Closure};
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum NavigationPage {
     Main,
-    Books,
-    Book,
-    Chapter,
-    Article,
+    Reading,
 }
 
 impl NavigationPage {
-    const COUNT: usize = 5;
+    const COUNT: usize = 2;
 
     #[cfg(feature = "hydrate")]
     fn index(self) -> usize {
@@ -44,46 +41,23 @@ impl NavigationPage {
 #[derive(Clone, Copy)]
 struct NavigationState {
     page: RwSignal<NavigationPage>,
-    book: RwSignal<Option<&'static Book>>,
-    chapter: RwSignal<Option<&'static Chapter>>,
-    article: RwSignal<Option<&'static Post>>,
+    is_index: RwSignal<bool>,
     focus_request: RwSignal<Option<NavigationPage>>,
 }
 
 impl NavigationState {
-    fn change_page(self, page: NavigationPage, should_focus: bool) {
+    fn select_route(self, route: Option<ReadingRoute>, should_focus: bool) -> NavigationPage {
+        let page = if route.is_some() {
+            NavigationPage::Reading
+        } else {
+            NavigationPage::Main
+        };
+        self.is_index
+            .set(matches!(route, Some(ReadingRoute::Index)));
         self.page.set(page);
         if should_focus {
             self.focus_request.set(Some(page));
         }
-    }
-
-    fn select_route(self, route: Option<ReadingRoute>, should_focus: bool) -> NavigationPage {
-        let page = match route {
-            Some(ReadingRoute::Index) => NavigationPage::Books,
-            Some(ReadingRoute::Book(book)) => {
-                self.book.set(Some(book));
-                NavigationPage::Book
-            }
-            Some(ReadingRoute::Chapter(book, chapter)) => {
-                self.book.set(Some(book));
-                self.chapter.set(Some(chapter));
-                NavigationPage::Chapter
-            }
-            Some(ReadingRoute::Article(post)) => {
-                self.article.set(Some(post));
-                if let Some((book, chapter)) = find_post_location(post.slug) {
-                    self.book.set(Some(book));
-                    self.chapter.set(Some(chapter));
-                } else {
-                    self.book.set(None);
-                    self.chapter.set(None);
-                }
-                NavigationPage::Article
-            }
-            None => NavigationPage::Main,
-        };
-        self.change_page(page, should_focus);
         page
     }
 }
@@ -95,17 +69,17 @@ fn navigate_root_page(
     should_focus: bool,
     navigate: impl Fn(&str, NavigateOptions),
 ) {
-    let href = match page {
-        NavigationPage::Main => "/",
-        NavigationPage::Books => "/writing",
-        _ => return,
+    let (href, route) = match page {
+        NavigationPage::Main => ("/", None),
+        NavigationPage::Reading => (ROOT_DIRECTORY.path, Some(ReadingRoute::Index)),
     };
-    state.change_page(page, should_focus);
+    state.select_route(route, should_focus);
     navigate(href, NavigateOptions::default());
 }
 
-fn is_unmodified_click(event: &leptos::ev::MouseEvent) -> bool {
-    event.button() == 0
+pub(super) fn is_unmodified_click(event: &leptos::ev::MouseEvent) -> bool {
+    !event.default_prevented()
+        && event.button() == 0
         && !event.ctrl_key()
         && !event.meta_key()
         && !event.shift_key()
@@ -194,15 +168,13 @@ fn handle_navigation_wheel(
     gesture.last_at = now;
     gesture.accumulated += delta;
     if gesture.accumulated.abs() >= WHEEL_THRESHOLD_PX {
-        let next = match (state.page.get_untracked(), delta > 0.0) {
-            (NavigationPage::Main, true) => NavigationPage::Books,
-            (NavigationPage::Books, false) => NavigationPage::Main,
-            (page, _) => page,
+        let next = if delta > 0.0 {
+            NavigationPage::Reading
+        } else {
+            NavigationPage::Main
         };
-        if next != state.page.get_untracked() {
-            navigate_root_page(state, next, has_focus_within(panel_ref), &navigate);
-            gesture.locked_until = now + WHEEL_FLIP_LOCK_MS;
-        }
+        navigate_root_page(state, next, has_focus_within(panel_ref), &navigate);
+        gesture.locked_until = now + WHEEL_FLIP_LOCK_MS;
         gesture.accumulated = 0.0;
     }
     gesture_cell.set(gesture);
@@ -210,9 +182,24 @@ fn handle_navigation_wheel(
 }
 
 #[cfg(feature = "hydrate")]
+fn is_interactive_key_target(event: &ev::KeyboardEvent) -> bool {
+    event
+        .target()
+        .and_then(|target| target.dyn_into::<web_sys::Element>().ok())
+        .is_some_and(|target| {
+            target
+                .closest("a[aria-expanded], button, input, select, textarea, [contenteditable]")
+                .ok()
+                .flatten()
+                .is_some()
+        })
+}
+
+#[cfg(feature = "hydrate")]
 fn handle_navigation_key(
     event: &ev::KeyboardEvent,
     state: NavigationState,
+    panels: [NodeRef<html::Div>; NavigationPage::COUNT],
     navigate: impl Fn(&str, NavigateOptions),
 ) {
     if event.default_prevented()
@@ -220,48 +207,26 @@ fn handle_navigation_key(
         || event.ctrl_key()
         || event.meta_key()
         || event.shift_key()
+        || is_interactive_key_target(event)
     {
         return;
     }
-    let (next, href) = match (state.page.get_untracked(), event.key().as_str()) {
-        (NavigationPage::Main, "PageDown" | "ArrowDown") => {
-            event.prevent_default();
-            navigate_root_page(state, NavigationPage::Books, true, navigate);
-            return;
-        }
-        (NavigationPage::Books, "PageUp" | "ArrowUp") => {
-            event.prevent_default();
-            navigate_root_page(state, NavigationPage::Main, true, navigate);
-            return;
-        }
-        (NavigationPage::Book, "ArrowLeft") => (NavigationPage::Books, Some("/writing".to_owned())),
-        (NavigationPage::Chapter, "ArrowLeft") => {
-            let href = state
-                .book
-                .get_untracked()
-                .map(|book| format!("/writing/books/{}", book.slug));
-            (NavigationPage::Book, href)
-        }
-        (NavigationPage::Article, "ArrowLeft") => {
-            let location = state
-                .article
-                .get_untracked()
-                .and_then(|post| find_post_location(post.slug));
-            match location {
-                Some((book, chapter)) => (
-                    NavigationPage::Chapter,
-                    Some(build_chapter_path(book, chapter)),
-                ),
-                None => (NavigationPage::Books, Some("/writing".to_owned())),
+    let page = state.page.get_untracked();
+    let next = match (page, event.key().as_str()) {
+        (NavigationPage::Main, "PageDown" | "ArrowDown") => NavigationPage::Reading,
+        (NavigationPage::Reading, "PageUp" | "ArrowUp") if state.is_index.get_untracked() => {
+            let Some(panel) = panels[NavigationPage::Reading.index()].get_untracked() else {
+                return;
+            };
+            if panel.scroll_top() > 1 {
+                return;
             }
+            NavigationPage::Main
         }
         _ => return,
     };
     event.prevent_default();
-    state.change_page(next, true);
-    if let Some(href) = href {
-        navigate(&href, NavigateOptions::default());
-    }
+    navigate_root_page(state, next, true, navigate);
 }
 
 #[cfg(feature = "hydrate")]
@@ -307,20 +272,21 @@ fn schedule_heading_focus(
 }
 
 #[component]
-fn BooksPage(
+fn ReadingPage(
     state: NavigationState,
-    pathname: Memo<String>,
     heading: NodeRef<html::H2>,
     panel: NodeRef<html::Div>,
+    is_hydrated: RwSignal<bool>,
+    id_prefix: &'static str,
 ) -> impl IntoView {
     let locale =
         use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
     view! {
-        <div node_ref=panel class="navigation-page navigation-page-books"
-            inert=move || state.page.get() != NavigationPage::Books
-            aria-hidden=move || if state.page.get() == NavigationPage::Books { "false" } else { "true" }>
+        <div node_ref=panel class="navigation-page navigation-page-reading"
+            inert=move || state.page.get() != NavigationPage::Reading
+            aria-hidden=move || if state.page.get() == NavigationPage::Reading { "false" } else { "true" }>
             <div class="navigation-page-header">
-                <A attr:class="sidebar-link navigation-back" href="/" attr:data-sidebar-level=""
+                <A attr:class="sidebar-link navigation-back" href="/" exact=true attr:data-sidebar-level=""
                     on:click=move |event| {
                         if is_unmodified_click(&event) {
                             state.select_route(None, true);
@@ -328,189 +294,16 @@ fn BooksPage(
                     }>
                     <span aria-hidden="true">"←"</span>{move || locale.get().select("返回主导航", "Back to navigation")}
                 </A>
-                <h2 node_ref=heading tabindex="-1">{move || locale.get().select("书籍", "Books")}</h2>
-            </div>
-            <nav class="reading-navigation-books sidebar-nav" aria-label=move || locale.get().select("书籍", "Books")>
-                {BOOKS.iter().map(|book| {
-                    let href = format!("/writing/books/{}", book.slug);
-                    let active_href = href.clone();
-                    view! {
-                        <A href=href attr:data-sidebar-level=""
-                            attr:class=move || if pathname.with(|path| path == &active_href) { "sidebar-link is-active" } else { "sidebar-link" }
-                            on:click=move |event| {
-                                if is_unmodified_click(&event) {
-                                    state.select_route(Some(ReadingRoute::Book(book)), true);
-                                }
-                            }>
-                            <Icon kind=IconKind::Writing/><span lang="zh-CN">{book.title}</span>
-                        </A>
-                    }
-                }).collect_view()}
-            </nav>
-        </div>
-    }
-}
-
-#[component]
-fn BookPage(
-    state: NavigationState,
-    heading: NodeRef<html::H2>,
-    panel: NodeRef<html::Div>,
-) -> impl IntoView {
-    let locale =
-        use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
-    view! {
-        <div node_ref=panel class="navigation-page navigation-page-book"
-            inert=move || state.page.get() != NavigationPage::Book
-            aria-hidden=move || if state.page.get() == NavigationPage::Book { "false" } else { "true" }>
-            <div class="navigation-page-header">
-                <A attr:class="sidebar-link navigation-back" href="/writing" attr:data-sidebar-level=""
-                    on:click=move |event| {
-                        if is_unmodified_click(&event) {
-                            state.select_route(Some(ReadingRoute::Index), true);
-                        }
-                    }>
-                    <span aria-hidden="true">"←"</span>{move || locale.get().select("返回书籍", "Back to books")}
+                <h2 node_ref=heading tabindex="-1">{move || locale.get().select("阅读导航", "Reading navigation")}</h2>
+                <A attr:class=move || if state.is_index.get() {
+                    "sidebar-link reading-tree-overview is-active"
+                } else {
+                    "sidebar-link reading-tree-overview"
+                } href=ROOT_DIRECTORY.path exact=true attr:data-sidebar-level="">
+                    {move || locale.get().select("文章目录", "Writing directory")}
                 </A>
-                <h2 node_ref=heading tabindex="-1" lang="zh-CN">
-                    {move || state.book.get().map(|book| book.title)}
-                </h2>
-                <p class="navigation-page-label">{move || locale.get().select("章节", "Chapters")}</p>
             </div>
-            <nav class="reading-navigation-chapters sidebar-nav" aria-label=move || locale.get().select("章节", "Chapters")>
-                {move || state.book.get().map(|book| {
-                    if book.chapters.is_empty() {
-                        view! { <p class="reading-navigation-empty">{move || locale.get().select("暂无章节", "No chapters yet")}</p> }.into_any()
-                    } else {
-                        book.chapters.iter().map(|chapter| {
-                            let href = build_chapter_path(book, chapter);
-                            view! {
-                                <A href=href attr:data-sidebar-level="" attr:class="sidebar-link"
-                                    on:click=move |event| {
-                                        if is_unmodified_click(&event) {
-                                            state.select_route(Some(ReadingRoute::Chapter(book, chapter)), true);
-                                        }
-                                    }>
-                                    <span lang="zh-CN">{chapter.title}</span>
-                                </A>
-                            }
-                        }).collect_view().into_any()
-                    }
-                })}
-            </nav>
-        </div>
-    }
-}
-
-fn render_chapter_articles(
-    chapter: &'static Chapter,
-    state: NavigationState,
-    pathname: Memo<String>,
-    locale: RwSignal<Locale>,
-) -> AnyView {
-    if chapter.post_slugs.is_empty() {
-        return view! { <p class="reading-navigation-empty">{move || locale.get().select("暂无文章", "No articles yet")}</p> }.into_any();
-    }
-    chapter.post_slugs.iter().map(|slug| match find_post(slug) {
-        Some(post) => {
-            let href = format!("/writing/{}", post.slug);
-            let active_href = href.clone();
-            view! {
-                <A href=href
-                    attr:class=move || if pathname.with(|path| path == &active_href) { "sidebar-link is-active" } else { "sidebar-link" }
-                    on:click=move |event| {
-                        if is_unmodified_click(&event) {
-                            state.select_route(Some(ReadingRoute::Article(post)), true);
-                        }
-                    }>
-                    <span lang="zh-CN">{post.title}</span>
-                </A>
-            }.into_any()
-        }
-        None => view! { <span class="reading-navigation-empty">{format!("Unavailable article: {slug}")}</span> }.into_any(),
-    }).collect_view().into_any()
-}
-
-#[component]
-fn ChapterPage(
-    state: NavigationState,
-    pathname: Memo<String>,
-    heading: NodeRef<html::H2>,
-    panel: NodeRef<html::Div>,
-) -> impl IntoView {
-    let locale =
-        use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
-    view! {
-        <div node_ref=panel class="navigation-page navigation-page-chapter"
-            inert=move || state.page.get() != NavigationPage::Chapter
-            aria-hidden=move || if state.page.get() == NavigationPage::Chapter { "false" } else { "true" }>
-            <div class="navigation-page-header">
-                <A attr:class="sidebar-link navigation-back"
-                    href=move || state.book.get()
-                        .map(|book| format!("/writing/books/{}", book.slug))
-                        .unwrap_or_else(|| "/writing".to_owned())
-                    attr:data-sidebar-level=""
-                    on:click=move |event| {
-                        if is_unmodified_click(&event) {
-                            state.change_page(NavigationPage::Book, true);
-                        }
-                    }>
-                    <span aria-hidden="true">"←"</span>{move || locale.get().select("返回本书", "Back to book")}
-                </A>
-                <h2 node_ref=heading tabindex="-1" lang="zh-CN">
-                    {move || state.chapter.get().map(|chapter| chapter.title)}
-                </h2>
-                <p class="navigation-page-label">{move || locale.get().select("本章文章", "Articles in this chapter")}</p>
-            </div>
-            <nav class="reading-navigation-articles sidebar-nav" aria-label=move || locale.get().select("文章", "Articles")>
-                {move || state.chapter.get().map(|chapter| render_chapter_articles(chapter, state, pathname, locale))}
-            </nav>
-        </div>
-    }
-}
-
-#[component]
-fn ArticlePage(
-    state: NavigationState,
-    heading: NodeRef<html::H2>,
-    panel: NodeRef<html::Div>,
-) -> impl IntoView {
-    let locale =
-        use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
-    view! {
-        <div node_ref=panel class="navigation-page navigation-page-article"
-            inert=move || state.page.get() != NavigationPage::Article
-            aria-hidden=move || if state.page.get() == NavigationPage::Article { "false" } else { "true" }>
-            <div class="navigation-page-header">
-                <A attr:class="sidebar-link navigation-back"
-                    href=move || state.article.get()
-                        .and_then(|post| find_post_location(post.slug))
-                        .map(|(book, chapter)| build_chapter_path(book, chapter))
-                        .unwrap_or_else(|| "/writing".to_owned())
-                    attr:data-sidebar-level=""
-                    on:click=move |event| {
-                        if is_unmodified_click(&event) {
-                            let parent = if state.book.get_untracked().is_some() {
-                                NavigationPage::Chapter
-                            } else {
-                                NavigationPage::Books
-                            };
-                            state.change_page(parent, true);
-                        }
-                    }>
-                    <span aria-hidden="true">"←"</span>
-                    {move || if state.book.get().is_some() {
-                        locale.get().select("返回章节", "Back to chapter")
-                    } else {
-                        locale.get().select("返回书籍", "Back to books")
-                    }}
-                </A>
-                <h2 node_ref=heading tabindex="-1" lang="zh-CN">
-                    {move || state.article.get().map(|post| post.title)}
-                </h2>
-                <p class="navigation-page-label">{move || locale.get().select("本文目录", "On this page")}</p>
-            </div>
-            {move || state.article.get().map(|post| view! { <SidebarOutline post/> })}
+            <ReadingTree is_hydrated id_prefix/>
         </div>
     }
 }
@@ -532,15 +325,14 @@ fn MainPage(
             </div>
             <SidebarNavigation show_writing_link=false/>
             <div class="navigation-entry">
-                <A attr:class="sidebar-link" href="/writing" attr:data-sidebar-level=""
+                <A attr:class="sidebar-link" href=ROOT_DIRECTORY.path attr:data-sidebar-level=""
                     on:click=move |event| {
                         if is_unmodified_click(&event) {
                             state.select_route(Some(ReadingRoute::Index), true);
                         }
                     }>
-                    <Icon kind=IconKind::Writing/>{move || locale.get().select("文章 / 书籍", "Writing / Books")}
-                </A>
-                <p>{move || locale.get().select("向下滚动浏览书籍", "Scroll down to browse books")}</p>
+                    <Icon kind=IconKind::Writing/>{move || locale.get().select("文章目录", "Writing")}</A>
+                <p>{move || locale.get().select("向下滚动浏览文章目录", "Scroll down to browse writing")}</p>
             </div>
         </div>
     }
@@ -563,7 +355,8 @@ fn handle_wheel_input(
     {
         return;
     }
-    let panel = panels[state.page.get_untracked().index()];
+    let page = state.page.get_untracked();
+    let panel = panels[page.index()];
     let delta = match event.delta_mode() {
         WHEEL_LINE_MODE => event.delta_y() * WHEEL_LINE_PX,
         WHEEL_PAGE_MODE => {
@@ -577,6 +370,16 @@ fn handle_wheel_input(
         _ => event.delta_y(),
     };
     if delta.abs() < f64::EPSILON {
+        return;
+    }
+    if page == NavigationPage::Reading && !state.is_index.get_untracked() {
+        return;
+    }
+    let gesture_locked = gesture.get().locked_until > event.time_stamp();
+    if !gesture_locked
+        && ((page == NavigationPage::Main && delta < 0.0)
+            || (page == NavigationPage::Reading && delta > 0.0))
+    {
         return;
     }
     if handle_navigation_wheel(state, panel, delta, event.time_stamp(), gesture, navigate) {
@@ -646,6 +449,7 @@ fn install_navigation_wheel(
         }
     });
 }
+
 #[derive(Clone, Copy)]
 struct NavigationNodes {
     headings: [NodeRef<html::H2>; NavigationPage::COUNT],
@@ -665,9 +469,17 @@ fn watch_navigation_updates(
     Effect::new(move |previous_path: Option<String>| {
         let path = pathname.get();
         if previous_path.as_deref().unwrap_or(initial_path.as_str()) != path {
-            let had_sidebar_focus = is_visible.get_untracked()
-                && has_focus_within(nodes.panels[state.page.get_untracked().index()]);
-            let page = state.select_route(resolve_reading_route(&path), had_sidebar_focus);
+            let route = resolve_reading_route(&path);
+            let next_page = if route.is_some() {
+                NavigationPage::Reading
+            } else {
+                NavigationPage::Main
+            };
+            let previous_page = state.page.get_untracked();
+            let had_sidebar_focus = previous_page != next_page
+                && is_visible.get_untracked()
+                && has_focus_within(nodes.panels[previous_page.index()]);
+            let page = state.select_route(route, had_sidebar_focus);
             if !had_sidebar_focus && state.focus_request.get_untracked() != Some(page) {
                 state.focus_request.set(None);
             }
@@ -677,9 +489,9 @@ fn watch_navigation_updates(
     Effect::new(move |previous_request: Option<u64>| {
         let request = reading_request.get();
         if previous_request.is_some_and(|previous| previous != request) {
-            state.change_page(NavigationPage::Books, true);
-            if pathname.get_untracked() != "/writing" {
-                navigate("/writing", NavigateOptions::default());
+            state.select_route(Some(ReadingRoute::Index), true);
+            if pathname.get_untracked() != ROOT_DIRECTORY.path {
+                navigate(ROOT_DIRECTORY.path, NavigateOptions::default());
             }
         }
         request
@@ -702,19 +514,19 @@ fn watch_navigation_updates(
         }
     });
 }
+
 #[component]
 pub(crate) fn ReadingNavigation(
     is_hydrated: RwSignal<bool>,
     is_visible: Signal<bool>,
     reading_request: RwSignal<u64>,
+    id_prefix: &'static str,
 ) -> impl IntoView {
     let pathname = use_location().pathname;
     let initial_path = pathname.get_untracked();
     let state = NavigationState {
         page: RwSignal::new(NavigationPage::Main),
-        book: RwSignal::new(None),
-        chapter: RwSignal::new(None),
-        article: RwSignal::new(None),
+        is_index: RwSignal::new(false),
         focus_request: RwSignal::new(None),
     };
     state.select_route(resolve_reading_route(&initial_path), false);
@@ -734,35 +546,23 @@ pub(crate) fn ReadingNavigation(
     );
     #[cfg(not(feature = "hydrate"))]
     let _ = (initial_path, reading_request);
-    let _ = is_hydrated;
     view! {
-        <NavigationSurface state pathname is_visible nodes/>
+        <NavigationSurface state is_visible nodes is_hydrated id_prefix/>
     }
 }
 
 #[component]
 fn NavigationSurface(
     state: NavigationState,
-    pathname: Memo<String>,
     is_visible: Signal<bool>,
     nodes: NavigationNodes,
+    is_hydrated: RwSignal<bool>,
+    id_prefix: &'static str,
 ) -> impl IntoView {
     let locale =
         use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
-    let [
-        main_heading,
-        books_heading,
-        book_heading,
-        chapter_heading,
-        article_heading,
-    ] = nodes.headings;
-    let [
-        main_panel,
-        books_panel,
-        book_panel,
-        chapter_panel,
-        article_panel,
-    ] = nodes.panels;
+    let [main_heading, reading_heading] = nodes.headings;
+    let [main_panel, reading_panel] = nodes.panels;
     let container = NodeRef::<html::Div>::new();
     #[cfg(feature = "hydrate")]
     let navigate = use_navigate();
@@ -775,21 +575,15 @@ fn NavigationSurface(
             aria-label=move || locale.get().select("阅读导航", "Reading navigation")
             on:keydown=move |event| {
                 #[cfg(feature = "hydrate")]
-                handle_navigation_key(&event, state, &navigate);
+                handle_navigation_key(&event, state, nodes.panels, &navigate);
                 #[cfg(not(feature = "hydrate"))]
                 let _ = event;
             }>
             <div class="reading-navigation-track"
                 class:page-main=move || state.page.get() == NavigationPage::Main
-                class:page-books=move || state.page.get() == NavigationPage::Books
-                class:page-book=move || state.page.get() == NavigationPage::Book
-                class:page-chapter=move || state.page.get() == NavigationPage::Chapter
-                class:page-article=move || state.page.get() == NavigationPage::Article>
+                class:page-reading=move || state.page.get() == NavigationPage::Reading>
                 <MainPage state heading=main_heading panel=main_panel/>
-                <BooksPage state pathname heading=books_heading panel=books_panel/>
-                <BookPage state heading=book_heading panel=book_panel/>
-                <ChapterPage state pathname heading=chapter_heading panel=chapter_panel/>
-                <ArticlePage state heading=article_heading panel=article_panel/>
+                <ReadingPage state heading=reading_heading panel=reading_panel is_hydrated id_prefix/>
             </div>
         </div>
     }

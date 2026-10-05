@@ -1,0 +1,3 @@
+# Stable options from upstream commit 584c3a2d884b0e4dba9e3f822a9b6982cff072c7.
+edition = "2021"
+max_width = 80

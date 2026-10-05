@@ -24,10 +24,23 @@ pulldown-cmark = "0.13"
 tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"], optional = true }
 wasm-bindgen = { version = "=0.2.129", optional = true }
 wasm-bindgen-futures = { version = "=0.4.79", optional = true }
-web-sys = { version = "0.3", features = ["Window", "Document", "HtmlDocument", "Element", "HtmlElement", "HtmlDialogElement", "HtmlButtonElement", "HtmlDivElement", "HtmlInputElement", "HtmlMetaElement", "MediaQueryList", "CssStyleDeclaration", "DomTokenList", "DomRect", "AnimationEvent", "PointerEvent", "KeyboardEvent", "MouseEvent", "Event", "EventTarget", "Location", "Navigator", "Clipboard", "ShareData", "DomException", "Node", "FocusOptions", "console"], optional = true }
+web-sys = { version = "0.3", features = ["Window", "Document", "HtmlDocument", "Element", "HtmlElement", "HtmlDialogElement", "HtmlButtonElement", "HtmlDivElement", "HtmlInputElement", "HtmlMetaElement", "MediaQueryList", "CssStyleDeclaration", "DomTokenList", "DomRect", "DomRectReadOnly", "ResizeObserver", "ResizeObserverEntry", "AnimationEvent", "PointerEvent", "KeyboardEvent", "MouseEvent", "Event", "EventTarget", "Location", "Navigator", "Clipboard", "ShareData", "DomException", "Node", "FocusOptions", "console"], optional = true }
+
+
+[build-dependencies]
+pulldown-cmark = "0.13"
+serde = { version = "1", features = ["derive"] }
+serde-saphyr = { version = "=1.3.0", default-features = false, features = ["deserialize"] }
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
+tempfile = "3"
+pulldown-cmark = "0.13"
+serde = { version = "1", features = ["derive"] }
+serde-saphyr = { version = "=1.3.0", default-features = false, features = ["deserialize"] }
+
+[patch.crates-io]
+leptos_router = { path = "vendor/leptos_router" }
 
 [features]
 default = ["ssr"]
@@ -53,3 +66,4 @@ lib-default-features = false
 bin-cargo-args = ["--locked"]
 lib-cargo-args = ["--locked"]
 disable-erase-components = true
+watch-additional-files = ["content/posts"]

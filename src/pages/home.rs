@@ -1,4 +1,4 @@
-use crate::locale::Locale;
+use crate::{content::ROOT_DIRECTORY, locale::Locale};
 use leptos::prelude::*;
 use leptos_meta::{Meta, Title};
 use leptos_router::components::A;
@@ -28,10 +28,10 @@ fn Hero(locale: RwSignal<Locale>) -> impl IntoView {
         <section class="hero" aria-labelledby="hero-title">
             <div class="hero-copy">
                 <div class="eyebrow"><span class="pulse" aria-hidden="true"></span>" PERSONAL SITE "<span class="eyebrow-divider">"/"</span>" RUST · SYSTEMS · IDEAS"</div>
-                <h1 id="hero-title">{move || locale.get().select("保持好奇", "Stay curious")}<span class="hero-comma">{move || locale.get().select("，", ",")}</span><br/><span class="hero-outline">{move || locale.get().select("持续构建", "Keep building")}</span><span class="hero-period">"."</span></h1>
+                <h1 id="hero-title"><span class="hero-title-line">{move || locale.get().select("保持好奇", "Stay curious")}<span class="hero-comma">{move || locale.get().select("，", ",")}</span></span><span class="hero-title-line"><span class="hero-outline">{move || locale.get().select("持续构建", "Keep building")}</span><span class="hero-period">"."</span></span></h1>
                 <p class="hero-lead">{move || locale.get().select("你好，我是 ", "Hi, I'm ")}<strong>"MCB-SMART-BOY"</strong>{move || locale.get().select("。", ".")}<br/>{move || locale.get().select("这里放着关于系统、代码与探索过程的笔记。", "This is a place for notes on systems, code, and the process of exploring.")}</p>
                 <div class="hero-actions">
-                    <A href="/writing" attr:class="button-primary">{move || locale.get().select("阅读文章 ", "Read the writing ")}<span aria-hidden="true">"↗"</span></A>
+                    <A href=ROOT_DIRECTORY.path attr:class="button-primary">{move || locale.get().select("阅读文章 ", "Read the writing ")}<span aria-hidden="true">"↗"</span></A>
                     <A href="/about" attr:class="button-text">{move || locale.get().select("了解我 ", "About me ")}<span aria-hidden="true">"↗"</span></A>
                 </div>
                 <div class="hero-coordinate" aria-hidden="true">"01 / AN INTERNET CORNER"<br/>"FOR THE CURIOUS MINDS."</div>
@@ -78,7 +78,7 @@ fn RecentPosts(locale: RwSignal<Locale>) -> impl IntoView {
             </div>
             <div class="section-heading">
                 <div><h2 id="writing-title">{move || locale.get().select("最近的", "Recent ")}<span class="accent">{move || locale.get().select("记录.", "notes.")}</span></h2><p>{move || locale.get().select("一些关于构建与思考的示例文章。正式发布前，请替换为自己的内容。", "Demo articles on building and thinking. Replace these with your own writing before publishing.")}</p></div>
-                <A href="/writing" attr:class="section-link">{move || locale.get().select("全部文章 ", "All writing ")}<span aria-hidden="true">"↗"</span></A>
+                <A href=ROOT_DIRECTORY.path attr:class="section-link">{move || locale.get().select("全部文章 ", "All writing ")}<span aria-hidden="true">"↗"</span></A>
             </div>
             <PostList/>
             <A href="/focus" attr:class="section-link focus-link">{move || locale.get().select("了解关注领域 ", "Explore focus areas ")}<span aria-hidden="true">"↗"</span></A>

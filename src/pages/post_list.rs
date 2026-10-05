@@ -10,10 +10,10 @@ pub(super) fn PostList() -> impl IntoView {
         <ul class="post-list">
             {POSTS.iter().map(|post| view! {
                 <li>
-                    <A href=format!("/writing/{}", post.slug) attr:class="post-row">
+                    <A href=post.path attr:class="post-row">
                         <span class="post-index">{post.index}<span class="post-index-line" aria-hidden="true"></span></span>
                         <div class="post-content">
-                            <span class="post-category">{post.category}" / "{move || locale.get().select("中文原文", "Chinese original")}</span>
+                            <span class="post-category">{(!post.category.is_empty()).then_some(post.category)}{(!post.category.is_empty()).then_some(" / ")}{move || locale.get().select("中文原文", "Chinese original")}</span>
                             <h3 class="post-title" lang="zh-CN">{post.title}</h3>
                             <span class="post-summary" lang="zh-CN">{post.summary}</span>
                         </div>

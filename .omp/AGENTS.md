@@ -1,28 +1,41 @@
 # MCB / LOG 项目上下文
 
-本项目是 Rust 全栈个人博客 demo；用户可见的流程：首页 → 文章归档或关注方向 → 文章阅读 / 关于。三篇文章为示例，并非作者已发布成果。根目录 `README.md` 仅用于 GitHub 用户自我介绍，不承载博客介绍、示例文章声明或折叠的项目手册。个人资料以用户已有介绍为准，不虚构履历与成果；博客浅色主题参考 `resume-template` 的暖纸色、细网格与靛蓝点缀，深色保留紫黑科幻主题。本文件负责博客运行说明、代码事实、设计参考和维护路由。
+本项目是 Rust 全栈个人博客 demo；用户可见的流程：首页 → 文章归档或关注方向 → 文章阅读 / 关于。三篇文章为示例，并非作者已发布成果。根目录 `README.md` 仅用于 GitHub 用户自我介绍，不承载博客介绍、示例文章声明或折叠的项目手册。个人资料以用户已有介绍为准，不虚构履历与成果；博客两种主题共用暖纸细网格的布局与装饰，浅色参考 `resume-template`，深色保留紫黑配色，不另设一套版式。本文件负责博客运行说明、代码事实、设计参考和维护路由。
 
 ## 代码与职责
 
 | 修改目标 | 事实源 |
 |---|---|
-| 文章正文与元数据 | `content/posts/*.md`、`src/content.rs`；顺序、slug、阅读分钟数由文章表确定，书籍、章节及文章归属由 `BOOKS` 确定，正文编入二进制 |
+| 内容目录、文章正文与元数据 | `content/posts/**` 的真实位置、`_index.md` 和文章 front matter；作者规范见 [content-format.md](content-format.md) |
+| 构建内容索引与通用查询 | `build.rs`、`build_support/`、`src/content.rs`；不手写文章表或归属表 |
 | 页面路由与 SSR 文档 | `src/app.rs`、`src/reading.rs`、`src/server.rs`、`src/main.rs` |
 | 首页、归档、详情、关注领域、关于、404 | `src/pages/` |
 | 导航、侧栏、顶栏、面包屑、分享与移动菜单 | `src/components/` |
+| 阅读树 / 文章目录与滚动高亮 / 响应式焦点 | `src/components/reading_navigation.rs`、`reading_directory.rs` / `current_directory.rs`、`article_outline.rs` / `directory_focus.rs` |
 | 主题、侧栏宽度与 cookie | `src/preferences.rs`；语言及 `mcb-lang` cookie 见 `src/locale.rs` |
 | Markdown HTML 安全边界 | `src/markdown.rs` |
 | 色彩和布局 / 本地字体与许可 / 本地图标 | `assets/site.css` / `public/fonts/` / `public/favicon.svg` |
 | Rust 和前端 WASM 构建 / 依赖审计 | `Cargo.toml`、`Cargo.lock`、`dev.sh`、`validate.sh`、`deny.toml` |
+| 路由依赖的历史导航补丁 | `vendor/leptos_router/src/location/history.rs`；由根 `Cargo.toml` 的 `[patch.crates-io]` 选择 |
 | GitHub 用户自我介绍 / 本地图形资源 | `README.md` / `.github/assets/profile-*.svg`；双色横幅、终端卡片、兴趣卡片和技术图标 |
 
 架构为 Axum HTTP + Leptos SSR/hydrate（浏览器端 Rust/WASM）；不需要 Node/Bun 或外部页面资产。移动端 SSR 在 WASM 不可用时仍提供真实链接导航；动态主题、折叠、宽度拖动、移动抽屉、分享与语言选择需要 hydration。首屏主题与侧栏设定由服务端读取 `mcb-ui` cookie，语言由 `mcb-lang` cookie 读取，合法值仅 `zh-CN` 和 `en`，默认中文。服务端渲染 `<html lang>` 及同源 bootstrap 数据，客户端使用同一初值避免 SSR/hydration 不一致。语言切换只翻译固定界面文案，三篇示例文章正文与标题依旧是中文原文（`lang="zh-CN"` 并标注原文）；不要把英文 UI 误报为英文版文章。所有来自 cookie 的值须受解析器限制，客户端仅更新对应字段。Markdown 仅收录仓库内容，未暴露投稿接口；原始 HTML 和不安全链接不被作为可执行页面内容接受。
 
 `Cargo.toml` 的 `disable-erase-components = true` 保持服务端与 WASM 的组件 hydration 标记一致：在真实浏览器中，去掉此设置曾使顶栏按钮失效并触发 `Unrecoverable hydration error`。变更 Leptos 版本或调整组件边界时必须用浏览器重新验证首页、文章与交互；编译和 SSR 路由测试不足以证明 hydration 成功。
 
-顶栏左侧为可回溯的当前位置面包屑，中间为 `MCB-SMART-BOY`，右侧顺序由左到右为语言、主题、GitHub、分享；文章路径只依据 `src/content.rs` 的书籍／章节关系生成，不从 slug 猜测栏目，段落目录仅从 Markdown 标题生成。桌面折叠键展开时位于 Logo 右侧；点击后真实按钮立即退出交互，装饰图标按测量坐标缩小飞入 Logo，抵达后才出现圆形同心水波，收起后仅保留 Logo 展开入口。首次以折叠偏好加载、悬停或聚焦不触发水波，快速展开会取消装饰，减少动态效果时立即切换。移动端使用顶栏菜单键。分享优先调用浏览器 Web Share，不支持时复制当前完整 URL，权限/能力失败时展示可手动复制的真实链接；不把失败伪装为成功。
+顶栏左侧为可回溯的当前位置面包屑，中间为 `MCB-SMART-BOY`，右侧顺序由左到右为语言、主题、GitHub、分享；内容路径和祖先只依据文件扫描生成的目录索引，不从标签猜测栏目，段落目录仅从 Markdown 标题生成。桌面折叠键展开时位于 Logo 右侧；点击后真实按钮立即退出交互，装饰图标按测量坐标缩小飞入 Logo，抵达后才出现圆形同心水波，收起后仅保留 Logo 展开入口。首次以折叠偏好加载、悬停或聚焦不触发水波，快速展开会取消装饰，减少动态效果时立即切换。移动端使用顶栏菜单键。分享优先调用浏览器 Web Share，不支持时复制当前完整 URL，权限/能力失败时展示可手动复制的真实链接；不把失败伪装为成功。
 
 `deny.toml` 仅允许已核对的许可证，并针对 Leptos 0.8 间接依赖的 `paste`、`proc-macro-error2` 停止维护通告记录逐项例外（当前依赖链无可直接升级的修补版本）。项目维护者在 2027-01-03 前及升级框架后复核并清理不再需要的例外，不可把它们解释为不存在安全风险。
+
+### 路由依赖补丁
+
+`vendor/leptos_router` 固定为 `0.8.16`，来自官方发行包及上游提交 [`584c3a2d884b0e4dba9e3f822a9b6982cff072c7`](https://github.com/leptos-rs/leptos/tree/584c3a2d884b0e4dba9e3f822a9b6982cff072c7/router)。保留原 manifest、源码、README、构建脚本和 `.cargo_vcs_info.json`；MIT `LICENSE` 取自该提交根目录。除 `src/location/history.rs` 外，复制的发行包文件保持原样；局部 formatter 配置只采用上游的稳定选项。原始 `history.rs` 的 SHA-256 为 `d668d8477c2fa4324423b0df9c95dbc13fe08ea5bf2d31e4bde3b7ebd9c25e42`。
+
+已复现的上游缺陷是 Back→Forward 后内部 `path_stack` 未同步，再点原目录时正文改变、地址栏不变。补丁以浏览器实际完整 URL（含 query/hash）决定是否 push；popstate 同步当前栈顶，replace 不追加历史项，浏览器提交错误保留原始 `JsValue` 并记录，不新增 panic。内部栈仍只是路由过渡动画的方向估计，不能区分重复 URL 的真实历史游标；本站未启用该框架 transition，地址提交不依赖此估计。
+
+维护者升级框架时须先检查上游是否真正修复，再移除补丁并复跑浏览器回归：`/writing`→系统目录→Rust 目录→Rust 文章→Back→Forward→Rust 目录；检查网址、正文、面包屑、左树和随后 Back 的目标一致。同时覆盖两页往返、重复 URL、多步历史、query/hash、相同完整 URL 去重及 replace。现有 Rust/SSR 测试不执行浏览器 History API，不能代替这组实际交互。禁止修改 `run/cargo/registry` 缓存充当修复，或在应用侧补写网址掩盖分叉。
+
+本地 path 源码不受 `Cargo.lock` 的 registry checksum 校验；`--locked` 只锁定依赖图。补丁源码必须保留在版本审查、密钥扫描和依赖审计范围内，不因放入 `vendor/` 而排除。
 
 ## GitHub 个人页视觉维护
 
@@ -61,23 +74,31 @@
 | 路径 | 内容 |
 |---|---|
 | `/` | 首页、最新文章和入口 |
-| `/writing` | 书籍合集与实际存在的独立文章 |
-| `/writing/books/:book_slug` | 书籍简介与章节入口；未知书籍为 404 |
-| `/writing/books/:book_slug/chapters/:chapter_slug` | 章节标题、文章数与本章文章入口；未知章节为 404 |
-| `/writing/:slug` | 文章详情与段落锚点；未知 slug 为 404 |
+| `/writing` | 内容根 `_index.md` 的介绍与实际直接子项 |
+| `/writing/*content_path` | 按真实内容路径精确分发目录页或文章页；不存在的路径及末尾斜线为 404 |
 | `/focus` | 三个关注方向 |
 | `/about` | 作者与 demo 说明 |
 
-新增文章时在 `src/content.rs` 维护文章顺序、slug、日期、阅读分钟数和摘要，在 `BOOKS` 维护书籍、章节及文章 slug 归属，在 `content/posts/` 增加正文并重建应用；正文随 Rust 二进制编译，页面更新不依赖在线数据库。当前内容目录不是文件系统自动扫描结果；侧栏、正文索引、返回链接和面包屑共享这套内容关系，不建立第二份导航目录。文章 Markdown 标题同时生成安全 HTML 锚点与目录，首次 HTTP 响应包含可阅读的服务端 HTML；hydration 成功后客户端导航与偏好交互可用。
+新增内容只维护 `content/posts/`：目录提供 `_index.md`，文章在 front matter 保存标题、摘要、日期及阅读分钟数，目录与文章的 `weight` 统一控制同级顺序。构建脚本递归发现内容，校验 YAML、路径冲突和相对 Markdown 链接，生成 SSR 与 WASM 共用的 `Directory`、`Post`、`ContentEntry` 索引；`POSTS` 是生成结果，不是手写登记表。每个目录可直接放文章、子目录或两者混合，也可为空；不再有固定 Book/Chapter 模型。具体字段、限制、网址与维护流程见 [内容规范](content-format.md)。
 
-侧栏保留独立的主导航区和文章区，文章区依次分为书籍列表、单本书的章节、单章的文章、单篇文章的段落，构成 `Main → Books → Book → Chapter → Article → 段落` 阅读路径。点击、无修饰滚轮或方向键／页键进入文章区时，侧栏和正文同步切到 `/writing`；主导航与书籍列表之间保留一次快速纵向切换，滚轮返回主导航时打开首页，惯性尾部被消费。折叠栏的文章入口先展开侧栏，再进入书籍总览，不重复写入历史。
+内容正文编入二进制；新增、移动、改标题或改排序后必须重建，`./dev.sh leptos watch` 同时监听内容目录。YAML 解析器仅为 build/dev 依赖，完整消费一份文档并限制解析资源，不启用文件包含或属性展开。出错时构建失败并报告文件与原因，不静默遗漏内容。原始 HTML 和危险链接仍不执行；相对 `.md`／`_index.md` 链接检查目标页面并改写为规范网址。生成索引供页面、左树、面包屑、父级入口和首页列表共同使用，目录介绍只显示本目录正文，不拼接子目录介绍。
 
-选择书籍后横向左划进入该书章节，同时打开 `/writing/books/:book_slug`；选择章节进入章节页及本章文章列表，选择文章进入正文及真实 Markdown 标题生成的段落链接。各级顶部集中放置返回上级、当前位置和下级列表说明；短视口中头部固定，只有当前面板内部溢出内容滚动。书籍页展示本书引言与章节入口，章节页只展示章节信息和本章文章，不重复书籍引言。桌面已 hydration 且侧栏展开时，段落目录仅保留在侧栏；移动端、折叠侧栏或无 JavaScript 时，正文保留原生折叠目录。
+网址严格随文件位置变化，不维护 slug、permalink、别名或重定向。现有文章如 `content/posts/demo-notes/systems/small-systems.md` 对应 `/writing/demo-notes/systems/small-systems`；旧文章地址、`/writing/books/...` 和旧章节地址不再解析。根路由和通配路由使用同一个响应式分发器，不能让 `/writing/` 在正文显示根目录、导航却显示 404。首次 HTTP 响应包含可阅读内容；hydration 后客户端导航与偏好交互可用。
 
-只有书籍列表列出书籍，章节面板只列章节，文章面板只列该章节所属文章；独立文章保留单独入口。深链按真实书籍／章节／文章关系恢复对应面板，不推断不存在的归属。Alt/Ctrl/Meta/Shift 修饰的键盘与滚轮操作保持浏览器原义；隐藏面板设为 `inert`，显式翻页及历史导航时若焦点原在侧栏则移到目标标题，滚轮不抢正文焦点。书籍／章节层级链接保持移动抽屉打开以呈现切页；选择文章或段落（包括当前文章）后关闭抽屉并聚焦正文，其余关闭操作返回菜单按钮。桌面普通链接导航将焦点移到正文，折叠和语言切换不重置面板。
+阅读区采用稳定的双栏分工：左栏提供真实目录与文章的可展开内容树；右栏仅在文章有真实 Markdown 小标题时显示“本文目录”，不重复文章标题。根目录、其他目录及无效路由不显示右目录，也不在正文重复插入另一份导航树。左栏顶部固定返回主导航、阅读导航标题和根目录入口；当前页精确标记，深链自动展开真实祖先。根下默认展开排序后的首个目录，其他手动展开状态保留到组件销毁。树标题完整换行，行高至少 44px，深层缩进最多累计到三级以保留窄栏可读宽度。
 
-博客采用浅色暖纸细网格与夜间科幻两套主题，采用小圆角控件、圆角卡片；侧栏支持折叠、拖动宽度和移动端抽屉。字体由 `assets/site.css` 的 `@font-face` 自托管 Maple Mono NF、JetBrainsMono Nerd Font Mono、思源黑体与思源宋体 Regular/Bold；微软雅黑与仿宋仅为访客系统字体回退，不重新分发。`public/fonts/NOTICE.txt` 记录来源、SHA 与许可证路径；完整 CJK OTF 较大，首屏需要按需加载字体，在调整字体打包方案时核对字形覆盖与许可。无后台、登录、评论、在线编辑、RSS 或部署配置。正式发布前需替换示例文章、审阅仓库内容，并评估部署安全、浏览器兼容性和可访问性。
+保留主导航与阅读区两个纵向面板，不再按内容层级横向换页。主导航向下滚轮进入 `/writing`；只有位于 `/writing` 且左树已滚到顶部时，向上滚轮才返回首页，目录和文章深页只滚动而不跳出阅读。沿用惯性抑制和键盘切换，不截获目录链接的正常键盘操作。主导航文章入口位于面板底部，短视口可随面板滚动到达；折叠栏入口先展开侧栏再进入内容根，不重复写入历史。短视口中阅读头部固定、当前面板内部滚动。
+
+文章目录随正文区域而非整个窗口响应：`.site-workspace` 至少 1100px 时显示右栏，否则使用正文原生 `details.article-outline-compact`；没有目录的页面不留空列。拖动或折叠左栏会重新分配宽度。`site.css` 断点须与 `directory_focus.rs` 的 `CURRENT_DIRECTORY_MIN_WORKSPACE_PX` 保持一致。目录焦点迁移合并到可取消的动画帧，执行时根据实际可见目录选择 summary 或右栏标题，不打开折叠内容、不滚动页面；快速反向跨断点不会执行旧目标，用户主动改换焦点会取消迁移，路由切换的正文焦点请求优先。
+
+树使用原生 `nav`、`ul`、`li`。目录整行是真实页面链接：普通点击导航并展开；再次点击当前目录只切换展开，不新增历史。箭头是装饰，不是另一枚按钮；链接持有唯一的桌面／移动端 `aria-controls` 和 `aria-expanded`。SSR 展开全部子列表，hydration 后才显示箭头并折叠非活动分支；无 JavaScript 时所有真实链接仍可访问。Alt/Ctrl/Meta/Shift 修饰操作保持浏览器原义，隐藏面板设为 `inert`。移动抽屉中，目录链接、根目录入口及主导航／阅读区切换保持抽屉打开；文章和段落链接关闭抽屉并聚焦正文，关闭按钮或 Escape 返回菜单按钮。语言、主题和侧栏折叠不重置树的展开状态。
+
+两个文章目录共用由 `SiteShell` 提供的当前标题状态。标题节点按文章缓存，滚动、窗口缩放和历史锚点事件合并为可取消的动画帧采样；换文章清理旧监听和节点。普通滚动只更新 `aria-current="location"`，不改 URL、历史或焦点，点击仍使用真实锚点。标题定位允许 1px 取整误差，实际滚动到底时选中末标题，不能以严格坐标相等或仅靠 hash 判断当前阅读位置。
+
+两种主题共用网格、圆角、间距、装饰和响应式布局，仅通过色彩变量区分浅色暖纸与夜间紫黑。首页标题按实际文案语言和正文可用宽度缩放，英文保持两行；中等宽度改为单列，不为英文维护第二份页面。侧栏支持折叠、拖动宽度和移动端抽屉。字体由 `assets/site.css` 的 `@font-face` 自托管 Maple Mono NF、JetBrainsMono Nerd Font Mono、思源黑体与思源宋体 Regular/Bold；微软雅黑与仿宋仅为访客系统字体回退，不重新分发。`public/fonts/NOTICE.txt` 记录来源、SHA 与许可证路径；完整 CJK OTF 较大，首屏需要按需加载字体，在调整字体打包方案时核对字形覆盖与许可。无后台、登录、评论、在线编辑、RSS 或部署配置。正式发布前需替换示例文章、审阅仓库内容，并评估部署安全、浏览器兼容性和可访问性。
 
 ## 博客设计来源
 
 调研了 [Matklad](https://matklad.github.io/) 的单栏文章、[Anthony Fu](https://antfu.me/posts) 的列表密度、[Dan Luu](https://danluu.com/) 的长文归档、[Tarik Karahodžić](https://www.tarikkarahodzic.dev/projects/personal-site) 的留白，以及 [Stefan Vitasović](https://tympanus.net/codrops/2025/03/05/case-study-stefan-vitasovic-portfolio-2025/) 的几何构图。浅色与文章背景借鉴本账号 [resume-template](https://github.com/MCB-SMART-BOY/resume-template) 中 `assets/styles/resume.css` 的暖纸底色、20px 浅网格、靛蓝点缀和正文深灰，而非复制用于 A4 导出的整张背景图。博客以本地 CSS 构图、大字和清晰的文章层级呈现，不复制第三方素材或加入重型动画，尊重系统减少动效偏好。
+
+阅读导航借鉴 [Docusaurus shared sidebar](https://docusaurus.io/docs/sidebar) 的稳定内容树和独立页内目录、[mdBook SUMMARY](https://rust-lang.github.io/mdBook/format/summary.html) 的内容层级，以及 [W3C APG Disclosure Navigation](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/examples/disclosure-navigation/) 的普通导航语义。按用户选择采用目录整行导航／展开，而非复制示例中的独立展开按钮；保留本站主题、字体、Logo 动效及主导航／阅读区滚轮切换。文件内容规范借鉴 Hugo 和 Zola 的 `_index.md` 约定，参考链接见 [content-format.md](content-format.md)。

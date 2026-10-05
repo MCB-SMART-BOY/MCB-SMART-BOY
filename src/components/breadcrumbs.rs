@@ -2,15 +2,15 @@ use leptos::prelude::*;
 use leptos_router::hooks::use_location;
 
 use crate::{
-    content::{Book, Chapter, Post, find_post_location},
+    content::{ROOT_DIRECTORY, find_directory},
     locale::Locale,
-    reading::{ReadingRoute, build_chapter_path, resolve_reading_route},
+    reading::{ReadingRoute, resolve_reading_route},
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct BreadcrumbItem {
     label: &'static str,
-    href: Option<String>,
+    href: Option<&'static str>,
     is_current: bool,
     lang: Option<&'static str>,
 }
@@ -24,7 +24,11 @@ fn current_item(label: &'static str, lang: Option<&'static str>) -> BreadcrumbIt
     }
 }
 
-fn ancestor_item(label: &'static str, href: String, lang: Option<&'static str>) -> BreadcrumbItem {
+fn ancestor_item(
+    label: &'static str,
+    href: &'static str,
+    lang: Option<&'static str>,
+) -> BreadcrumbItem {
     BreadcrumbItem {
         label,
         href: Some(href),
@@ -33,64 +37,44 @@ fn ancestor_item(label: &'static str, href: String, lang: Option<&'static str>) 
     }
 }
 
-fn build_book_breadcrumbs(book: &Book, locale: Locale) -> Vec<BreadcrumbItem> {
-    vec![
-        ancestor_item(locale.writing(), "/writing".to_owned(), None),
-        current_item(book.title, Some("zh-CN")),
-    ]
-}
-
-fn build_chapter_breadcrumbs(
-    book: &Book,
-    chapter: &Chapter,
-    locale: Locale,
-) -> Vec<BreadcrumbItem> {
-    vec![
-        ancestor_item(locale.writing(), "/writing".to_owned(), None),
-        ancestor_item(
-            book.title,
-            format!("/writing/books/{}", book.slug),
-            Some("zh-CN"),
-        ),
-        current_item(chapter.title, Some("zh-CN")),
-    ]
-}
-
-fn build_article_breadcrumbs(post: &Post, locale: Locale) -> Vec<BreadcrumbItem> {
-    let mut items = Vec::with_capacity(4);
-    items.push(ancestor_item(locale.writing(), "/writing".to_owned(), None));
-    if let Some((book, chapter)) = find_post_location(post.slug) {
-        items.push(ancestor_item(
-            book.title,
-            format!("/writing/books/{}", book.slug),
+fn build_directory_ancestors(mut parent_path: Option<&'static str>) -> Vec<BreadcrumbItem> {
+    let mut ancestors = Vec::new();
+    while let Some(path) = parent_path {
+        let Some(directory) = find_directory(path) else {
+            break;
+        };
+        ancestors.push(ancestor_item(
+            directory.title,
+            directory.path,
             Some("zh-CN"),
         ));
-        items.push(ancestor_item(
-            chapter.title,
-            build_chapter_path(book, chapter),
-            Some("zh-CN"),
-        ));
+        parent_path = directory.parent_path;
     }
-    items.push(current_item(post.title, Some("zh-CN")));
-    items
+    ancestors.reverse();
+    ancestors
 }
 
 pub(super) fn build_breadcrumbs(pathname: &str, locale: Locale) -> Vec<BreadcrumbItem> {
-    let label = match pathname {
-        "/" => locale.home(),
-        "/focus" => locale.focus(),
-        "/about" => locale.about(),
-        _ => match resolve_reading_route(pathname) {
-            Some(ReadingRoute::Index) => locale.writing(),
-            Some(ReadingRoute::Book(book)) => return build_book_breadcrumbs(book, locale),
-            Some(ReadingRoute::Chapter(book, chapter)) => {
-                return build_chapter_breadcrumbs(book, chapter, locale);
-            }
-            Some(ReadingRoute::Article(post)) => return build_article_breadcrumbs(post, locale),
-            None => locale.not_found(),
-        },
+    let route = resolve_reading_route(pathname);
+    let (parent, current) = match route {
+        Some(ReadingRoute::Index) => {
+            return vec![current_item(ROOT_DIRECTORY.title, Some("zh-CN"))];
+        }
+        Some(ReadingRoute::Directory(directory)) => (directory.parent_path, directory.title),
+        Some(ReadingRoute::Article(post)) => (Some(post.parent_path), post.title),
+        None => {
+            let label = match pathname {
+                "/" => locale.home(),
+                "/focus" => locale.focus(),
+                "/about" => locale.about(),
+                _ => locale.not_found(),
+            };
+            return vec![current_item(label, None)];
+        }
     };
-    vec![current_item(label, None)]
+    let mut items = build_directory_ancestors(parent);
+    items.push(current_item(current, Some("zh-CN")));
+    items
 }
 
 #[component]

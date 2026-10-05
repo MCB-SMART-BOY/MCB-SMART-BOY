@@ -18,7 +18,7 @@ pub fn build_app(options: LeptosOptions) -> Router {
 #[cfg(test)]
 mod tests {
     use super::build_app;
-    use crate::content::{BOOKS, find_post};
+    use crate::content::{find_directory, find_post};
     use axum::{
         body::{Body, to_bytes},
         http::{Request, StatusCode, header::COOKIE},
@@ -27,6 +27,14 @@ mod tests {
     use tower::ServiceExt;
 
     const MAX_TEST_RESPONSE_BYTES: usize = 1024 * 1024;
+    const DEMO_DIRECTORY_PATH: &str = "/writing/demo-notes";
+    const SYSTEMS_DIRECTORY_PATH: &str = "/writing/demo-notes/systems";
+    const SYSTEMS_POST_PATH: &str = "/writing/demo-notes/systems/small-systems";
+    const ARTICLE_PATHS: [&str; 3] = [
+        SYSTEMS_POST_PATH,
+        "/writing/demo-notes/rust-web/rust-web-notes",
+        "/writing/demo-notes/learning/notes-on-learning",
+    ];
 
     async fn request_page_with_cookie(path: &str, cookie: Option<&str>) -> (StatusCode, String) {
         let options = get_configuration(Some("Cargo.toml"))
@@ -72,20 +80,75 @@ mod tests {
             .0
     }
 
+    fn find_element_markup<'a>(body: &'a str, marker: &str, tag: &str) -> &'a str {
+        let marker_start = body.find(marker).expect("expected rendered element");
+        let start = body[..marker_start]
+            .rfind('<')
+            .expect("element opening tag");
+        let body = &body[start..];
+        let opening = format!("<{tag}");
+        let closing = format!("</{tag}>");
+        let mut depth = 0;
+        for (offset, _) in body.match_indices('<') {
+            let remaining = &body[offset..];
+            if remaining.starts_with(&opening)
+                && remaining
+                    .as_bytes()
+                    .get(opening.len())
+                    .is_some_and(|character| character.is_ascii_whitespace() || *character == b'>')
+            {
+                depth += 1;
+            } else if remaining.starts_with(&closing) {
+                depth -= 1;
+                if depth == 0 {
+                    return &body[..offset + closing.len()];
+                }
+            }
+        }
+        panic!("unclosed rendered {tag}");
+    }
+
+    fn find_active_navigation(body: &str) -> &str {
+        let sidebar = find_element_markup(body, "id=\"site-sidebar\"", "aside");
+        find_element_markup(sidebar, "aria-hidden=\"false\"", "div")
+    }
+
+    fn find_current_directory(body: &str) -> &str {
+        find_element_markup(body, "class=\"current-directory\"", "aside")
+    }
+
+    fn collect_attribute_values<'a>(markup: &'a str, name: &str) -> Vec<&'a str> {
+        markup
+            .split(&format!(" {name}=\""))
+            .skip(1)
+            .map(|part| part.split_once('\"').expect("quoted attribute").0)
+            .collect()
+    }
+
+    fn collect_link_targets(markup: &str) -> Vec<&str> {
+        collect_attribute_values(markup, "href")
+    }
+
+    fn assert_current_link(markup: &str, expected_href: &str) {
+        assert_eq!(
+            markup.matches("aria-current=\"page\"").count(),
+            1,
+            "current navigation at {expected_href}: {markup}"
+        );
+        let current = find_element_markup(markup, "aria-current=\"page\"", "a");
+        assert_eq!(collect_link_targets(current), [expected_href]);
+    }
+
     #[tokio::test]
-    async fn archive_lists_demo_book_as_real_route() {
+    async fn archive_lists_only_direct_content_children() {
         let (status, body) = request_page("/writing").await;
         assert_eq!(status, StatusCode::OK);
-        let main = main_markup(&body);
-        assert!(main.contains("href=\"/writing/books/demo-notes\""));
-        assert!(main.contains("探索笔记（示例合集）"));
-        assert!(main.contains(BOOKS[0].introduction));
-        for chapter_slug in ["systems", "rust-web", "learning"] {
-            assert!(main.contains(&format!(
-                "href=\"/writing/books/demo-notes/chapters/{chapter_slug}\""
-            )));
+        let targets = collect_link_targets(main_markup(&body));
+        assert!(targets.contains(&DEMO_DIRECTORY_PATH));
+        assert!(!targets.contains(&SYSTEMS_DIRECTORY_PATH));
+        for path in ARTICLE_PATHS {
+            assert!(!targets.contains(&path));
         }
-        assert!(!main.contains("href=\"/writing/small-systems\""));
         assert_eq!(
             breadcrumb_markup(&body)
                 .matches("aria-current=\"page\"")
@@ -95,93 +158,116 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn book_route_lists_chapter_pages_not_articles() {
-        let (status, body) = request_page("/writing/books/demo-notes").await;
+    async fn directory_lists_direct_children_and_own_introduction() {
+        let (status, body) = request_page(DEMO_DIRECTORY_PATH).await;
         assert_eq!(status, StatusCode::OK);
         let main = main_markup(&body);
-        assert!(main.contains(BOOKS[0].introduction));
-        for chapter_slug in ["systems", "rust-web", "learning"] {
-            assert!(main.contains(&format!(
-                "href=\"/writing/books/demo-notes/chapters/{chapter_slug}\""
-            )));
+        let directory = find_directory(DEMO_DIRECTORY_PATH).expect("fixture directory");
+        assert!(main.contains(directory.render().html.as_str()));
+        let targets = collect_link_targets(main);
+        for name in ["systems", "rust-web", "learning"] {
+            let path = format!("{DEMO_DIRECTORY_PATH}/{name}");
+            assert!(targets.contains(&path.as_str()));
         }
-        for post_slug in ["small-systems", "rust-web-notes", "notes-on-learning"] {
-            assert!(!main.contains(&format!("href=\"/writing/{post_slug}\"")));
+        for path in ARTICLE_PATHS {
+            assert!(!targets.contains(&path));
         }
         let crumbs = breadcrumb_markup(&body);
-        assert!(crumbs.contains("href=\"/writing\""));
+        assert!(collect_link_targets(crumbs).contains(&"/writing"));
         assert_eq!(crumbs.matches("aria-current=\"page\"").count(), 1);
     }
 
     #[tokio::test]
-    async fn chapter_route_lists_only_member_articles_and_parent_breadcrumbs() {
-        for (chapter_slug, own_post) in [
-            ("systems", "small-systems"),
-            ("rust-web", "rust-web-notes"),
-            ("learning", "notes-on-learning"),
-        ] {
-            let (status, body) = request_page(&format!(
-                "/writing/books/demo-notes/chapters/{chapter_slug}"
-            ))
-            .await;
+    async fn directory_with_articles_links_only_local_posts_and_real_parent() {
+        for (name, own_post) in ["systems", "rust-web", "learning"]
+            .into_iter()
+            .zip(ARTICLE_PATHS)
+        {
+            let (status, body) = request_page(&format!("{DEMO_DIRECTORY_PATH}/{name}")).await;
             assert_eq!(status, StatusCode::OK);
             let main = main_markup(&body);
-            assert!(main.contains(&format!("href=\"/writing/{own_post}\"")));
-            for post_slug in ["small-systems", "rust-web-notes", "notes-on-learning"] {
-                if post_slug != own_post {
-                    assert!(!main.contains(&format!("href=\"/writing/{post_slug}\"")));
-                }
+            let targets = collect_link_targets(main);
+            assert!(targets.contains(&own_post));
+            for path in ARTICLE_PATHS.into_iter().filter(|path| *path != own_post) {
+                assert!(!targets.contains(&path));
             }
-            assert!(main.contains(find_post(own_post).expect("book references a post").summary));
+            assert!(main.contains(find_post(own_post).expect("fixture article").summary));
             let crumbs = breadcrumb_markup(&body);
-            assert!(crumbs.contains("href=\"/writing\""));
-            assert!(crumbs.contains("href=\"/writing/books/demo-notes\""));
+            let ancestors = collect_link_targets(crumbs);
+            assert!(ancestors.contains(&"/writing"));
+            assert!(ancestors.contains(&DEMO_DIRECTORY_PATH));
             assert_eq!(crumbs.matches("aria-current=\"page\"").count(), 1);
         }
     }
 
     #[tokio::test]
-    async fn article_breadcrumbs_link_to_actual_book_and_chapter() {
-        let (status, body) = request_page("/writing/small-systems").await;
+    async fn article_breadcrumbs_and_return_link_follow_actual_directories() {
+        let (status, body) = request_page(SYSTEMS_POST_PATH).await;
         assert_eq!(status, StatusCode::OK);
         let crumbs = breadcrumb_markup(&body);
-        for ancestor in [
-            "/writing",
-            "/writing/books/demo-notes",
-            "/writing/books/demo-notes/chapters/systems",
-        ] {
-            assert!(crumbs.contains(&format!("href=\"{ancestor}\"")));
+        let ancestors = collect_link_targets(crumbs);
+        for ancestor in ["/writing", DEMO_DIRECTORY_PATH, SYSTEMS_DIRECTORY_PATH] {
+            assert!(ancestors.contains(&ancestor));
         }
         assert_eq!(crumbs.matches("aria-current=\"page\"").count(), 1);
-        let main = main_markup(&body);
-        assert!(main.contains("href=\"/writing/books/demo-notes/chapters/systems\""));
+        assert!(collect_link_targets(main_markup(&body)).contains(&SYSTEMS_DIRECTORY_PATH));
     }
 
     #[tokio::test]
-    async fn book_unknown_slug_returns_not_found() {
-        let (status, body) = request_page("/writing/books/no-such-book").await;
-        assert_eq!(status, StatusCode::NOT_FOUND);
-        assert!(!main_markup(&body).contains("class=\"book-chapters\""));
-    }
-
-    #[tokio::test]
-    async fn chapter_invalid_book_or_chapter_returns_not_found() {
+    async fn nonexistent_content_paths_return_not_found() {
         for path in [
-            "/writing/books/no-such-book/chapters/systems",
-            "/writing/books/demo-notes/chapters/no-such-chapter",
+            "/writing/no-such-directory",
+            "/writing/demo-notes/no-such-directory",
+            "/writing/demo-notes/systems/no-such-article",
+        ] {
+            let (status, _) = request_page(path).await;
+            assert_eq!(status, StatusCode::NOT_FOUND, "unexpected route: {path}");
+        }
+    }
+
+    #[tokio::test]
+    async fn trailing_slash_content_paths_render_not_found_instead_of_content() {
+        for path in [
+            "/writing/",
+            "/writing/demo-notes/",
+            "/writing/demo-notes/systems/small-systems/",
         ] {
             let (status, body) = request_page(path).await;
             assert_eq!(status, StatusCode::NOT_FOUND, "unexpected route: {path}");
-            assert!(!main_markup(&body).contains("class=\"chapter-articles\""));
+            assert!(
+                main_markup(&body).contains("404"),
+                "missing error page at {path}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn legacy_content_addresses_return_not_found_without_aliases() {
+        for path in [
+            "/writing/books/demo-notes",
+            "/writing/books/demo-notes/chapters/systems",
+            "/writing/books/demo-notes/chapters/rust-web",
+            "/writing/books/demo-notes/chapters/learning",
+            "/writing/small-systems",
+            "/writing/rust-web-notes",
+            "/writing/notes-on-learning",
+        ] {
+            let (status, _) = request_page(path).await;
+            assert_eq!(
+                status,
+                StatusCode::NOT_FOUND,
+                "legacy route remains: {path}"
+            );
         }
     }
 
     #[tokio::test]
     async fn nested_writing_paths_do_not_resolve_by_prefix() {
         for path in [
-            "/writing/books/demo-notes/extra",
-            "/writing/books/demo-notes/chapters/systems/extra",
-            "/writing/small-systems/extra",
+            "/writing/demo-notes/extra",
+            "/writing/demo-notes/systems/extra",
+            "/writing/demo-notes/systems/small-systems/extra",
+            "/writing/demo-notes/systems/small-systems.md",
         ] {
             let (status, _) = request_page(path).await;
             assert_eq!(status, StatusCode::NOT_FOUND, "unexpected route: {path}");
@@ -190,11 +276,9 @@ mod tests {
 
     #[tokio::test]
     async fn article_english_cookie_preserves_original_and_ui_preferences() {
-        let (status, body) = request_page_with_cookie(
-            "/writing/small-systems",
-            Some("mcb-lang=en; mcb-ui=dark:1:320"),
-        )
-        .await;
+        let (status, body) =
+            request_page_with_cookie(SYSTEMS_POST_PATH, Some("mcb-lang=en; mcb-ui=dark:1:320"))
+                .await;
         assert_eq!(status, StatusCode::OK);
         assert!(body.contains("lang=\"en\""));
         assert!(body.contains("data-theme=\"dark\""));
@@ -205,23 +289,24 @@ mod tests {
     #[tokio::test]
     async fn article_invalid_language_cookie_uses_chinese() {
         let (status, body) =
-            request_page_with_cookie("/writing/small-systems", Some("mcb-lang=english")).await;
+            request_page_with_cookie(SYSTEMS_POST_PATH, Some("mcb-lang=english")).await;
         assert_eq!(status, StatusCode::OK);
         assert!(body.contains("lang=\"zh-CN\""));
         assert!(main_markup(&body).contains("中文原文"));
     }
 
     #[tokio::test]
-    async fn article_known_slug_returns_readable_html() {
-        let (status, body) = request_page("/writing/small-systems").await;
+    async fn article_content_path_returns_readable_html_without_front_matter() {
+        let (status, body) = request_page(SYSTEMS_POST_PATH).await;
         assert_eq!(status, StatusCode::OK);
         assert!(main_markup(&body).contains("把系统做小，是一种工程能力"));
         assert!(main_markup(&body).contains("一个小系统"));
+        assert!(!main_markup(&body).contains("reading_minutes:"));
     }
 
     #[tokio::test]
     async fn article_html_links_outline_entries_to_real_heading_ids() {
-        let (status, body) = request_page("/writing/small-systems").await;
+        let (status, body) = request_page(SYSTEMS_POST_PATH).await;
 
         assert_eq!(status, StatusCode::OK);
         assert!(main_markup(&body).contains("<h2 id=\"section-1\">先写出要交付的行为</h2>"));
@@ -248,5 +333,116 @@ mod tests {
         let (status, body) = request_page("/not-present").await;
         assert_eq!(status, StatusCode::NOT_FOUND);
         assert!(main_markup(&body).contains("没有信号"));
+    }
+
+    #[tokio::test]
+    async fn reading_routes_keep_complete_tree_and_exact_current_page() {
+        let expected = [
+            "/",
+            "/writing",
+            DEMO_DIRECTORY_PATH,
+            SYSTEMS_DIRECTORY_PATH,
+            SYSTEMS_POST_PATH,
+            "/writing/demo-notes/rust-web",
+            "/writing/demo-notes/rust-web/rust-web-notes",
+            "/writing/demo-notes/learning",
+            "/writing/demo-notes/learning/notes-on-learning",
+        ];
+        for path in [
+            "/writing",
+            DEMO_DIRECTORY_PATH,
+            "/writing/demo-notes/rust-web",
+            SYSTEMS_POST_PATH,
+        ] {
+            let (status, body) = request_page(path).await;
+            assert_eq!(status, StatusCode::OK);
+            let navigation = find_active_navigation(&body);
+            assert_eq!(collect_link_targets(navigation), expected, "{path}");
+            assert_current_link(navigation, path);
+        }
+    }
+
+    #[tokio::test]
+    async fn reading_disclosures_have_unique_targets_and_visible_ssr_children() {
+        let (_, body) = request_page(SYSTEMS_POST_PATH).await;
+        let ids = collect_attribute_values(&body, "id");
+        let unique = ids
+            .iter()
+            .copied()
+            .collect::<std::collections::HashSet<_>>();
+        assert_eq!(unique.len(), ids.len(), "duplicate element IDs");
+        let scopes = [
+            find_element_markup(&body, "id=\"site-sidebar\"", "aside"),
+            find_element_markup(&body, "class=\"mobile-drawer\"", "dialog"),
+        ];
+        for scope in scopes {
+            let tree = find_element_markup(scope, "class=\"reading-tree sidebar-nav\"", "nav");
+            for target in collect_attribute_values(tree, "aria-controls") {
+                assert!(
+                    unique.contains(target),
+                    "missing disclosure target: {target}"
+                );
+                let link = find_element_markup(tree, &format!("aria-controls=\"{target}\""), "a");
+                assert!(
+                    link.contains("aria-expanded=\"true\""),
+                    "SSR disclosure state is false"
+                );
+                let targets = collect_link_targets(link);
+                assert_eq!(targets.len(), 1);
+                assert!(
+                    find_directory(targets[0]).is_some(),
+                    "branch does not open a directory"
+                );
+                let subtree = find_element_markup(tree, &format!("id=\"{target}\""), "ul");
+                let opening = subtree.split_once('>').expect("subtree opening tag").0;
+                assert!(!opening.contains(" hidden"), "SSR hides links in {target}");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn article_directory_links_only_to_real_page_headings() {
+        let (_, body) = request_page(SYSTEMS_POST_PATH).await;
+        let expected = find_post(SYSTEMS_POST_PATH)
+            .expect("fixture article")
+            .render()
+            .headings
+            .iter()
+            .map(|heading| format!("{SYSTEMS_POST_PATH}#{}", heading.id))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            collect_link_targets(find_current_directory(&body)),
+            expected
+        );
+    }
+
+    #[tokio::test]
+    async fn non_article_and_invalid_routes_omit_page_directory() {
+        for path in [
+            "/",
+            "/focus",
+            "/about",
+            "/writing",
+            DEMO_DIRECTORY_PATH,
+            SYSTEMS_DIRECTORY_PATH,
+            "/missing",
+            "/writing/no-such-article",
+            "/writing/no-such-directory",
+            "/writing/demo-notes/no-such-directory",
+        ] {
+            let (_, body) = request_page(path).await;
+            assert!(
+                !body.contains("class=\"current-directory\""),
+                "unexpected directory at {path}"
+            );
+            assert!(
+                !body.contains("class=\"article-outline-compact\""),
+                "unexpected article outline at {path}"
+            );
+            assert!(
+                !body.contains("has-current-directory"),
+                "empty directory column at {path}"
+            );
+        }
     }
 }

@@ -1,5 +1,8 @@
 use pulldown_cmark::{CowStr, Event, Options, Parser, Tag, TagEnd, html};
 
+#[path = "../build_support/links.rs"]
+mod links;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct HeadingEntry {
     pub(crate) id: String,
@@ -29,7 +32,23 @@ fn safe_destination(destination: CowStr<'_>) -> CowStr<'_> {
     }
 }
 
-fn sanitize_event(event: Event<'_>) -> Event<'_> {
+fn safe_link_destination<'a>(destination: CowStr<'a>, source_file: &str) -> CowStr<'a> {
+    match links::resolve_content_link(source_file, &destination) {
+        Ok(Some(path)) => CowStr::Boxed(path.into_boxed_str()),
+        Ok(None) if is_safe_destination(&destination) => destination,
+        Ok(None) => CowStr::Borrowed("#"),
+        Err(source) => {
+            let message = format!("Invalid Markdown link {destination} in {source_file}: {source}");
+            #[cfg(feature = "hydrate")]
+            web_sys::console::error_1(&message.into());
+            #[cfg(not(feature = "hydrate"))]
+            eprintln!("{message}");
+            CowStr::Borrowed("#")
+        }
+    }
+}
+
+fn sanitize_event<'a>(event: Event<'a>, source_file: &str) -> Event<'a> {
     match event {
         Event::Html(raw) | Event::InlineHtml(raw) => Event::Text(raw),
         Event::Start(Tag::Link {
@@ -39,7 +58,7 @@ fn sanitize_event(event: Event<'_>) -> Event<'_> {
             id,
         }) => Event::Start(Tag::Link {
             link_type,
-            dest_url: safe_destination(dest_url),
+            dest_url: safe_link_destination(dest_url, source_file),
             title,
             id,
         }),
@@ -58,12 +77,12 @@ fn sanitize_event(event: Event<'_>) -> Event<'_> {
     }
 }
 
-pub(crate) fn render_markdown(source: &str) -> RenderedMarkdown {
+pub(crate) fn render_content_markdown(source: &str, source_file: &str) -> RenderedMarkdown {
     let mut headings = Vec::new();
     let mut current_heading: Option<HeadingEntry> = None;
     let mut next_section = FIRST_SECTION_NUMBER;
     let events = Parser::new_ext(source, Options::ENABLE_STRIKETHROUGH).map(|event| {
-        let event = sanitize_event(event);
+        let event = sanitize_event(event, source_file);
         let event = match event {
             Event::Start(Tag::Heading {
                 level,
@@ -115,6 +134,11 @@ pub(crate) fn render_markdown(source: &str) -> RenderedMarkdown {
     RenderedMarkdown { html, headings }
 }
 
+#[cfg(test)]
+fn render_markdown(source: &str) -> RenderedMarkdown {
+    render_content_markdown(source, "/writing/_index.md")
+}
+
 fn normalize_heading_text(text: &str) -> String {
     let mut words = text.split_whitespace();
     let mut normalized = words.next().unwrap_or_default().to_owned();
@@ -127,7 +151,7 @@ fn normalize_heading_text(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_safe_destination, render_markdown};
+    use super::{is_safe_destination, render_content_markdown, render_markdown};
 
     #[test]
     fn markdown_raw_html_and_unsafe_link_are_not_executable() {
@@ -140,8 +164,9 @@ mod tests {
 
     #[test]
     fn markdown_https_link_and_code_remain_readable() {
-        let html = render_markdown("[Rust](https://www.rust-lang.org)\n\n`let x = 1;`").html;
-        assert!(html.contains("href=\"https://www.rust-lang.org\""));
+        let html =
+            render_markdown("[Rust](https://example.org/README.md?raw=true)\n\n`let x = 1;`").html;
+        assert!(html.contains("href=\"https://example.org/README.md?raw=true\""));
         assert!(html.contains("<code>let x = 1;</code>"));
         assert!(!is_safe_destination("//example.com"));
     }
@@ -182,5 +207,19 @@ mod tests {
 
         assert!(rendered.headings.is_empty());
         assert!(rendered.html.contains("<h1 id=\"section-1\"></h1>"));
+    }
+    #[test]
+    fn markdown_relative_content_links_use_canonical_paths_and_keep_heading_anchors() {
+        let rendered = render_content_markdown(
+            "## Intro\n\n[previous](../intro.md#section-1) [parent](_index.md)",
+            "/writing/book/chapter/story.md",
+        );
+        assert!(
+            rendered
+                .html
+                .contains("href=\"/writing/book/intro#section-1\"")
+        );
+        assert!(rendered.html.contains("href=\"/writing/book/chapter\""));
+        assert_eq!(rendered.headings[0].id, "section-1");
     }
 }
