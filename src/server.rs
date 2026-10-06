@@ -320,19 +320,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn focus_separate_route_returns_focus_content() {
-        let (status, body) = request_page("/focus").await;
-        assert_eq!(status, StatusCode::OK);
-        for heading in ["系统编程", "智能与安全", "公开记录"] {
-            assert!(main_markup(&body).contains(heading));
-        }
+    async fn unknown_path_returns_not_found() {
+        let (status, _) = request_page("/not-present").await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
     }
 
     #[tokio::test]
-    async fn unknown_path_returns_not_found() {
-        let (status, body) = request_page("/not-present").await;
-        assert_eq!(status, StatusCode::NOT_FOUND);
-        assert!(main_markup(&body).contains("没有信号"));
+    async fn retired_profile_routes_return_not_found() {
+        for path in ["/focus", "/about"] {
+            let (status, _) = request_page(path).await;
+            assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
+        }
     }
 
     #[tokio::test]

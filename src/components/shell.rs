@@ -1,6 +1,7 @@
 use leptos::{html, prelude::*};
 
 use crate::{
+    landing::{LandingSection, provide_landing_context},
     locale::Locale,
     preferences::{SIDEBAR_MOBILE_BREAKPOINT_PX, UiPreferences},
 };
@@ -33,6 +34,22 @@ fn focus_element(element: Option<web_sys::HtmlElement>) {
         }
     }
 }
+#[cfg(feature = "hydrate")]
+fn focus_landing_section(section: LandingSection) {
+    let target = web_sys::window()
+        .and_then(|window| window.document())
+        .and_then(|document| document.get_element_by_id(section.id()))
+        .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok());
+    focus_element(target);
+}
+
+#[cfg(feature = "hydrate")]
+fn landing_section_from_href(href: &str) -> Option<LandingSection> {
+    LandingSection::ALL
+        .into_iter()
+        .find(|section| section.href() == href)
+}
+
 #[cfg(feature = "hydrate")]
 fn focus_main_after_sidebar_navigation() {
     let Some(document) = web_sys::window().and_then(|window| window.document()) else {
@@ -103,12 +120,14 @@ pub fn SiteShell(children: Children) -> impl IntoView {
     let viewport_width = RwSignal::new(1440_u16);
     let is_drawer_open = RwSignal::new(false);
     let focus_main_after_close = RwSignal::new(false);
+    let landing_focus_after_close = RwSignal::new(None::<LandingSection>);
     let drawer = NodeRef::<html::Dialog>::new();
     let trigger = NodeRef::<html::Button>::new();
     let mobile_reading_request = RwSignal::new(0_u64);
     let workspace = NodeRef::<html::Div>::new();
     let pathname = use_location().pathname;
     provide_article_outline_context(pathname);
+    provide_landing_context(pathname);
     let is_mobile_visible = Signal::derive(move || {
         viewport_width.get() < SIDEBAR_MOBILE_BREAKPOINT_PX && is_drawer_open.get()
     });
@@ -226,7 +245,13 @@ pub fn SiteShell(children: Children) -> impl IntoView {
                 </div>
                 <footer class="site-footer">
                     <div class="footer-top"><span class="footer-glyph" aria-hidden="true">"✳"</span><span>"KEEP BUILDING"<br/>"KEEP QUESTIONING."</span></div>
-                    <div class="footer-bottom"><span>"© 2026 MCB-SMART-BOY "<span class="footer-separator">"/"</span>" BUILT WITH RUST"</span><span><a href="/writing">{move || locale.get().writing()}</a><a href="/about">{move || locale.get().about()}</a><a href="https://github.com/MCB-SMART-BOY" target="_blank" rel="noopener noreferrer">"GITHUB ↗"</a></span></div>
+                    <div class="footer-bottom"><span>"© 2026 MCB-SMART-BOY "<span class="footer-separator">"/"</span>" BUILT WITH RUST"</span><span>
+                        <a href=LandingSection::Home.href() target="_self">{move || LandingSection::Home.label(locale.get())}</a>
+                        <a href=LandingSection::Focus.href() target="_self">{move || LandingSection::Focus.label(locale.get())}</a>
+                        <a href=LandingSection::About.href() target="_self">{move || LandingSection::About.label(locale.get())}</a>
+                        <a href="/writing">{move || locale.get().writing()}</a>
+                        <a href="https://github.com/MCB-SMART-BOY" target="_blank" rel="noopener noreferrer">"GITHUB ↗"</a>
+                    </span></div>
                 </footer>
             </div>
         </div>
@@ -239,7 +264,13 @@ pub fn SiteShell(children: Children) -> impl IntoView {
                 is_drawer_open.set(false);
                 #[cfg(feature = "hydrate")]
                 {
-                    if focus_main_after_close.get_untracked() || viewport_width.get_untracked() >= SIDEBAR_MOBILE_BREAKPOINT_PX {
+                    if let Some(section) = landing_focus_after_close.get_untracked()
+                        .filter(|_| pathname.get_untracked() == "/")
+                    {
+                        focus_landing_section(section);
+                    } else if focus_main_after_close.get_untracked()
+                        || viewport_width.get_untracked() >= SIDEBAR_MOBILE_BREAKPOINT_PX
+                    {
                         let main = web_sys::window().and_then(|window| window.document())
                             .and_then(|document| document.get_element_by_id("main"))
                             .and_then(|element| element.dyn_into::<web_sys::HtmlElement>().ok());
@@ -249,6 +280,7 @@ pub fn SiteShell(children: Children) -> impl IntoView {
                     }
                 }
                 focus_main_after_close.set(false);
+                landing_focus_after_close.set(None);
             }
             on:click=move |event| {
                 #[cfg(feature = "hydrate")]
@@ -260,13 +292,15 @@ pub fn SiteShell(children: Children) -> impl IntoView {
                     if !is_unmodified_click(&event) {
                         return;
                     }
-                    let is_internal_link = event.target()
+                    let internal_href = event.target()
                         .and_then(|target| target.dyn_into::<web_sys::Element>().ok())
                         .and_then(|target| target.closest("a[href]:not([data-sidebar-level]):not([data-reading-branch])").ok().flatten())
                         .and_then(|link| link.get_attribute("href"))
-                        .is_some_and(|href| href.starts_with('/'));
-                    if is_internal_link {
-                        focus_main_after_close.set(true);
+                        .filter(|href| href.starts_with('/'));
+                    if let Some(href) = internal_href {
+                        let landing_target = landing_section_from_href(&href);
+                        landing_focus_after_close.set(landing_target);
+                        focus_main_after_close.set(landing_target.is_none());
                         if let Some(dialog) = drawer.get_untracked() { dialog.close(); }
                     }
                 }

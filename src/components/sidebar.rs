@@ -5,6 +5,7 @@ use leptos_router::{components::A, hooks::use_location};
 use crate::preferences::persist_preferences;
 use crate::{
     content::ROOT_DIRECTORY,
+    landing::{LandingSection, use_landing_section},
     locale::Locale,
     preferences::{
         SIDEBAR_CONTENT_MIN_PX, SIDEBAR_MAX_PX, SIDEBAR_MIN_PX, SIDEBAR_MOBILE_BREAKPOINT_PX,
@@ -84,16 +85,16 @@ fn focus_brand_target(is_collapsed: bool) {
 }
 
 #[cfg(feature = "hydrate")]
-fn schedule_brand_focus(
-    is_collapsed: bool,
-    pending: StoredValue<RefCell<Option<AnimationFrameRequestHandle>>, LocalStorage>,
-) {
+fn schedule_brand_focus(state: BrandState, is_collapsed: bool, flight_origin: Option<(f64, f64)>) {
+    let pending = state.pending_focus;
     cancel_brand_focus(pending);
-    let callback_pending = pending;
     match request_animation_frame_with_handle(move || {
-        callback_pending.with_value(|pending| {
-            pending.borrow_mut().take();
-        });
+        pending.with_value(|pending| pending.borrow_mut().take());
+        if let Some(origin) =
+            flight_origin.filter(|_| state.preferences.get_untracked().is_sidebar_collapsed)
+        {
+            state.is_collapsing.set(capture_brand_flight(state, origin));
+        }
         focus_brand_target(is_collapsed);
     }) {
         Ok(handle) => pending.with_value(|pending| *pending.borrow_mut() = Some(handle)),
@@ -104,29 +105,47 @@ fn schedule_brand_focus(
 }
 
 #[cfg(feature = "hydrate")]
-fn capture_brand_flight(
-    brand: NodeRef<html::Div>,
-    collapse: NodeRef<html::Button>,
-    mark: NodeRef<html::Span>,
-) -> bool {
-    let Some((brand, collapse, mark)) = brand
+fn capture_brand_origin(state: BrandState) -> Option<(f64, f64)> {
+    let Some((brand, collapse)) = state
+        .brand
         .get_untracked()
-        .zip(collapse.get_untracked())
-        .zip(mark.get_untracked())
-        .map(|((brand, collapse), mark)| (brand, collapse, mark))
+        .zip(state.collapse.get_untracked())
     else {
-        web_sys::console::error_1(&"Cannot measure sidebar brand flight: missing element".into());
-        return false;
+        web_sys::console::error_1(&"Cannot measure sidebar flight origin: missing element".into());
+        return None;
     };
-    let brand: web_sys::HtmlElement = brand.into();
     let container = brand.get_bounding_client_rect();
     let source = collapse.get_bounding_client_rect();
-    let target = mark.get_bounding_client_rect();
     let sizes = [
         container.width(),
         container.height(),
         source.width(),
         source.height(),
+    ];
+    let x = source.x() + source.width() / 2.0 - container.x();
+    let y = source.y() + source.height() / 2.0 - container.y();
+    if sizes.iter().any(|size| !size.is_finite() || *size <= 0.0)
+        || !x.is_finite()
+        || !y.is_finite()
+    {
+        web_sys::console::error_1(&"Cannot measure sidebar flight origin: invalid geometry".into());
+        return None;
+    }
+    Some((x, y))
+}
+
+#[cfg(feature = "hydrate")]
+fn capture_brand_flight(state: BrandState, (source_x, source_y): (f64, f64)) -> bool {
+    let Some((brand, mark)) = state.brand.get_untracked().zip(state.mark.get_untracked()) else {
+        web_sys::console::error_1(&"Cannot measure sidebar brand flight: missing element".into());
+        return false;
+    };
+    let brand: web_sys::HtmlElement = brand.into();
+    let container = brand.get_bounding_client_rect();
+    let target = mark.get_bounding_client_rect();
+    let sizes = [
+        container.width(),
+        container.height(),
         target.width(),
         target.height(),
     ];
@@ -136,8 +155,6 @@ fn capture_brand_flight(
         );
         return false;
     }
-    let source_x = source.x() + source.width() / 2.0 - container.x();
-    let source_y = source.y() + source.height() / 2.0 - container.y();
     let target_x = target.x() + target.width() / 2.0 - container.x();
     let target_y = target.y() + target.height() / 2.0 - container.y();
     for (name, value) in [
@@ -211,9 +228,11 @@ fn render_brand_logo(state: BrandState) -> impl IntoView {
                         state.preferences.update(|value| value.is_sidebar_collapsed = false);
                         save_preferences(state.preferences.get_untracked());
                         #[cfg(feature = "hydrate")]
-                        schedule_brand_focus(false, state.pending_focus);
+                        schedule_brand_focus(state, false, None);
                     }>
-                    <span class="brand-mark" aria-hidden="true">"M"<span class="brand-mark-dot">"."</span></span>
+                    <span node_ref=state.mark class="brand-mark" aria-hidden="true">
+                        <img class="brand-logo" src="/images/mcb-logo.png" alt="" width="640" height="640"/>
+                    </span>
                     <Show when=move || state.is_collapsing.get()>
                         <span class="brand-ripple brand-ripple-first" aria-hidden="true"></span>
                         <span class="brand-ripple brand-ripple-last" aria-hidden="true"></span>
@@ -222,11 +241,13 @@ fn render_brand_logo(state: BrandState) -> impl IntoView {
             }.into_any()
         } else {
             view! {
-                <A href="/" exact=true attr:class="brand"
-                    attr:aria-label=move || state.locale.get().select("MCB / LOG，返回首页", "MCB / LOG, return home")>
-                    <span node_ref=state.mark class="brand-mark" aria-hidden="true">"M"<span class="brand-mark-dot">"."</span></span>
-                    <span class="brand-name" aria-hidden="true">"MCB"<span class="brand-name-muted">" / LOG"</span></span>
-                </A>
+                <a href=LandingSection::Home.href() class="brand"
+                    target="_self"
+                    aria-label=move || state.locale.get().select("MCB / LOG，返回首页", "MCB / LOG, return home")>
+                    <span node_ref=state.mark class="brand-mark" aria-hidden="true">
+                        <img class="brand-logo" src="/images/mcb-logo.png" alt="" width="640" height="640"/>
+                    </span>
+                </a>
             }.into_any()
         }
     }
@@ -242,14 +263,14 @@ fn render_brand_collapse_control(state: BrandState) -> impl IntoView {
                 aria-label=label title=label
                 on:click=move |_| {
                     #[cfg(feature = "hydrate")]
-                    let has_flight = should_animate_brand() && capture_brand_flight(state.brand, state.collapse, state.mark);
-                    #[cfg(not(feature = "hydrate"))]
-                    let has_flight = false;
-                    state.is_collapsing.set(has_flight);
+                    let flight_origin = should_animate_brand()
+                        .then(|| capture_brand_origin(state))
+                        .flatten();
+                    state.is_collapsing.set(false);
                     state.preferences.update(|value| value.is_sidebar_collapsed = true);
                     save_preferences(state.preferences.get_untracked());
                     #[cfg(feature = "hydrate")]
-                    schedule_brand_focus(true, state.pending_focus);
+                    schedule_brand_focus(state, true, flight_origin);
                 }
             ><Icon kind=IconKind::Sidebar/></button>
         </Show>
@@ -304,34 +325,47 @@ pub(super) fn SidebarBrand(is_hydrated: RwSignal<bool>, is_desktop: bool) -> imp
     }
 }
 
+fn select_section_icon(section: LandingSection) -> IconKind {
+    match section {
+        LandingSection::Home => IconKind::Home,
+        LandingSection::Focus => IconKind::Focus,
+        LandingSection::About => IconKind::About,
+        LandingSection::Background => IconKind::Education,
+        LandingSection::Projects => IconKind::Code,
+        LandingSection::Experience => IconKind::Work,
+        LandingSection::Community => IconKind::Community,
+        LandingSection::Recognition => IconKind::Award,
+        LandingSection::Notes => IconKind::Writing,
+    }
+}
+
 #[component]
 pub(super) fn SidebarNavigation(show_writing_link: bool) -> impl IntoView {
-    let location = use_location();
+    let pathname = use_location().pathname;
+    let active_section = use_landing_section();
     let locale =
         use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
-    let home_active = move || location.pathname.get() == "/";
+    let is_landing_active = move |section| pathname.get() == "/" && active_section.get() == section;
     let writing_active = move || {
-        let pathname = location.pathname.get();
+        let pathname = pathname.get();
         pathname == "/writing" || pathname.starts_with("/writing/")
     };
-    let focus_active = move || location.pathname.get() == "/focus";
-    let about_active = move || location.pathname.get() == "/about";
     view! {
         <nav class="sidebar-nav" aria-label=move || locale.get().select("主导航", "Main navigation")>
-            <A href="/" exact=true attr:class=move || if home_active() { "sidebar-link is-active" } else { "sidebar-link" } attr:title=move || locale.get().home() attr:aria-label=move || locale.get().home()>
-                <Icon kind=IconKind::Home/><span class="sidebar-link-label">{move || locale.get().home()}</span>
-            </A>
+            {LandingSection::ALL.into_iter().map(move |section| view! {
+                <a href=section.href() target="_self"
+                    class=move || if is_landing_active(section) { "sidebar-link is-active" } else { "sidebar-link" }
+                    title=move || section.label(locale.get())
+                    aria-label=move || section.label(locale.get())
+                    aria-current=move || is_landing_active(section).then_some("location")>
+                    <Icon kind=select_section_icon(section)/><span class="sidebar-link-label">{move || section.label(locale.get())}</span>
+                </a>
+            }).collect_view()}
             {show_writing_link.then(|| view! {
                 <A href=ROOT_DIRECTORY.path attr:class=move || if writing_active() { "sidebar-link is-active" } else { "sidebar-link" } attr:title=move || locale.get().writing() attr:aria-label=move || locale.get().writing()>
                     <Icon kind=IconKind::Writing/><span class="sidebar-link-label">{move || locale.get().writing()}</span>
                 </A>
             })}
-            <A href="/focus" exact=true attr:class=move || if focus_active() { "sidebar-link is-active" } else { "sidebar-link" } attr:title=move || locale.get().focus() attr:aria-label=move || locale.get().focus()>
-                <Icon kind=IconKind::Focus/><span class="sidebar-link-label">{move || locale.get().focus()}</span>
-            </A>
-            <A href="/about" exact=true attr:class=move || if about_active() { "sidebar-link is-active" } else { "sidebar-link" } attr:title=move || locale.get().about() attr:aria-label=move || locale.get().about()>
-                <Icon kind=IconKind::About/><span class="sidebar-link-label">{move || locale.get().about()}</span>
-            </A>
         </nav>
     }
 }

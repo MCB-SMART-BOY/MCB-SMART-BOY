@@ -1,10 +1,17 @@
+// The combined landing sections need deeper compile-time view layout queries.
+#![recursion_limit = "256"]
+
 pub mod app;
 pub mod components;
 mod content;
+mod landing;
+#[cfg(feature = "hydrate")]
+mod landing_motion;
 mod locale;
 mod markdown;
 pub mod pages;
 pub mod preferences;
+mod profile;
 mod reading;
 #[cfg(feature = "ssr")]
 pub mod server;

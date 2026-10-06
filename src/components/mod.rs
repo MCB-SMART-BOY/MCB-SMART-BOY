@@ -4,6 +4,7 @@ pub(crate) mod current_directory;
 #[cfg(feature = "hydrate")]
 mod directory_focus;
 mod icons;
+pub(crate) mod profile;
 mod reading_directory;
 mod reading_navigation;
 mod share;

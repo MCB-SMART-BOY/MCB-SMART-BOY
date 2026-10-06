@@ -1,20 +1,17 @@
-use crate::locale::Locale;
+use crate::{
+    locale::Locale,
+    profile::{GRIDIX_URL, ISABELLE_RS_URL, MINIF2F_URL, N3V3_URL, VERIFIER_RS_URL},
+};
 use leptos::prelude::*;
-use leptos_meta::{Meta, Title};
 
 #[component]
-pub fn FocusPage() -> impl IntoView {
+pub(super) fn FocusSection() -> impl IntoView {
     let locale =
         use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
     view! {
-        <Title text=move || format!("{} — MCB / LOG", locale.get().focus())/>
-        <Meta name="description" content=move || locale.get().select(
-            "系统编程、智能与安全，以及公开记录：MCB-SMART-BOY 持续探索的方向。",
-            "Systems programming, intelligence and security, and public notes: areas MCB-SMART-BOY continues to explore.",
-        )/>
-        <section class="page-intro focus-intro" aria-labelledby="page-title">
+        <section class="page-intro focus-intro" aria-labelledby="focus-title">
             <span class="section-kicker"><span class="square" aria-hidden="true"></span>" 02 / CURRENT SIGNAL"</span>
-            <h1 id="page-title">{move || locale.get().select("持续关注", "Areas of focus")}<span class="accent">"."</span></h1>
+            <h2 id="focus-title">{move || locale.get().select("持续关注", "Areas of focus")}<span class="accent">"."</span></h2>
             <p>{move || locale.get().select("不是完成清单，而是持续探索的问题空间。", "Not a list of achievements, but questions to keep exploring.")}</p>
         </section>
         <section class="section focus-section" aria-labelledby="focus-cards-title">
@@ -23,21 +20,33 @@ pub fn FocusPage() -> impl IntoView {
             <div class="focus-grid">
                 <div class="focus-card">
                     <span class="focus-number">"[ 01 ]"</span><span class="focus-symbol" aria-hidden="true">"⌘"</span>
-                    <h3>{move || locale.get().select("系统编程", "Systems programming")}<span>" / SYSTEMS"</span></h3>
-                    <p>{move || locale.get().select("从语言到内核，追问抽象下面真正发生的事。", "From languages to kernels, asking what really happens beneath the abstractions.")}</p>
-                    <span class="focus-foot">"RUST · LINUX · KERNEL"</span>
+                    <h3>{move || locale.get().select("系统与开发工具", "Systems & developer tools")}<span>" / SYSTEMS & TOOLS"</span></h3>
+                    <p>{move || locale.get().select("用 Rust 探索数据库工具、语言实现与 eBPF 验证。", "Exploring database tools, language implementation, and eBPF verification with Rust.")}</p>
+                    <span class="focus-foot">"RUST · DATABASES · EBPF"</span>
+                    <div class="focus-project-links">
+                        <a href=GRIDIX_URL target="_blank" rel="noopener noreferrer">"Gridix ↗"</a>
+                        <a href=N3V3_URL target="_blank" rel="noopener noreferrer">"n3v3 ↗"</a>
+                        <a href=VERIFIER_RS_URL target="_blank" rel="noopener noreferrer">"verifier-rs ↗"</a>
+                    </div>
                 </div>
                 <div class="focus-card">
                     <span class="focus-number">"[ 02 ]"</span><span class="focus-symbol" aria-hidden="true">"✳"</span>
-                    <h3>{move || locale.get().select("智能与安全", "Intelligence & security")}<span>" / INTELLIGENCE"</span></h3>
-                    <p>{move || locale.get().select("关注实时推理、计算机视觉与可靠的软件边界。", "Exploring real-time inference, computer vision, and reliable software boundaries.")}</p>
-                    <span class="focus-foot">"AI · SECURITY · VISION"</span>
+                    <h3>{move || locale.get().select("形式化验证", "Formal verification")}<span>" / FORMAL VERIFICATION"</span></h3>
+                    <p>{move || locale.get().select("围绕 Lean 4、Isabelle 与证明内核，探索推理流程和信任边界。", "Exploring reasoning workflows and trust boundaries with Lean 4, Isabelle, and proof kernels.")}</p>
+                    <span class="focus-foot">"LEAN 4 · ISABELLE · LCF"</span>
+                    <div class="focus-project-links">
+                        <a href=ISABELLE_RS_URL target="_blank" rel="noopener noreferrer">"isabelle-rs ↗"</a>
+                        <a href=MINIF2F_URL target="_blank" rel="noopener noreferrer">"miniF2F ↗"</a>
+                    </div>
                 </div>
                 <div class="focus-card">
                     <span class="focus-number">"[ 03 ]"</span><span class="focus-symbol" aria-hidden="true">"↗"</span>
-                    <h3>{move || locale.get().select("公开记录", "Open notes")}<span>" / NOTES"</span></h3>
-                    <p>{move || locale.get().select("把实验过程写下来，让下一次探索有迹可循。", "Recording experiments so the next exploration has a trail to follow.")}</p>
-                    <span class="focus-foot">"BUILD · LEARN · SHARE"</span>
+                    <h3>{move || locale.get().select("AI 与工程实践", "Applied AI & engineering")}<span>" / APPLIED AI"</span></h3>
+                    <p>{move || locale.get().select("关注视觉推理、异常检测、异步服务与可复现部署。", "Working on visual inference, anomaly detection, asynchronous services, and reproducible deployment.")}</p>
+                    <span class="focus-foot">"PYTORCH · FASTAPI · NIX"</span>
+                    <div class="focus-project-links">
+                        <a href="/#experience" target="_self">{move || locale.get().select("查看工程经历", "View engineering experience")}</a>
+                    </div>
                 </div>
             </div>
         </section>

@@ -155,6 +155,17 @@ pub(super) fn Topbar(
                     )
                     title="GitHub"
                 ><Icon kind=IconKind::Github/></a>
+                <a class="topbar-github topbar-bilibili" href="https://space.bilibili.com/3493283751791185"
+                    target="_blank" rel="noopener noreferrer"
+                    aria-label=move || locale.get().select(
+                        "在新窗口打开 CodeFlow 社团 B站主页",
+                        "Open CodeFlow club on Bilibili in a new window",
+                    )
+                    title=move || locale.get().select(
+                        "CodeFlow 社团 B站主页（新窗口）",
+                        "CodeFlow club on Bilibili (new window)",
+                    )
+                ><Icon kind=IconKind::Bilibili/></a>
                 <ShareButton is_hydrated/>
             </div>
         </header>

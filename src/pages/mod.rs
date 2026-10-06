@@ -13,8 +13,6 @@ use crate::{
 use leptos::prelude::*;
 use leptos_router::hooks::use_location;
 
-pub use about::AboutPage;
-pub use focus::FocusPage;
 pub use home::HomePage;
 pub use not_found::NotFoundPage;
 

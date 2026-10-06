@@ -3,6 +3,7 @@ use leptos_router::hooks::use_location;
 
 use crate::{
     content::{ROOT_DIRECTORY, find_directory},
+    landing::{LandingSection, use_landing_section},
     locale::Locale,
     reading::{ReadingRoute, resolve_reading_route},
 };
@@ -54,7 +55,11 @@ fn build_directory_ancestors(mut parent_path: Option<&'static str>) -> Vec<Bread
     ancestors
 }
 
-pub(super) fn build_breadcrumbs(pathname: &str, locale: Locale) -> Vec<BreadcrumbItem> {
+pub(super) fn build_breadcrumbs(
+    pathname: &str,
+    locale: Locale,
+    section: LandingSection,
+) -> Vec<BreadcrumbItem> {
     let route = resolve_reading_route(pathname);
     let (parent, current) = match route {
         Some(ReadingRoute::Index) => {
@@ -63,11 +68,10 @@ pub(super) fn build_breadcrumbs(pathname: &str, locale: Locale) -> Vec<Breadcrum
         Some(ReadingRoute::Directory(directory)) => (directory.parent_path, directory.title),
         Some(ReadingRoute::Article(post)) => (Some(post.parent_path), post.title),
         None => {
-            let label = match pathname {
-                "/" => locale.home(),
-                "/focus" => locale.focus(),
-                "/about" => locale.about(),
-                _ => locale.not_found(),
+            let label = if pathname == "/" {
+                section.label(locale)
+            } else {
+                locale.not_found()
             };
             return vec![current_item(label, None)];
         }
@@ -82,7 +86,9 @@ pub(super) fn Breadcrumbs() -> impl IntoView {
     let location = use_location();
     let locale =
         use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
-    let items = Memo::new(move |_| build_breadcrumbs(&location.pathname.get(), locale.get()));
+    let active = use_landing_section();
+    let items =
+        Memo::new(move |_| build_breadcrumbs(&location.pathname.get(), locale.get(), active.get()));
     view! {
         <nav class="breadcrumbs" tabindex="0" aria-label=move || locale.get().select("当前位置", "Current location")>
             <ol>
