@@ -1,0 +1,82 @@
+# Install as .github/workflows/pages.yml in MCB-SMART-BOY/mcb-smart-boy.github.io.
+# Configure that repository's Pages source as GitHub Actions before dispatching.
+name: Publish static blog
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Full lowercase 40-character commit SHA from MCB-SMART-BOY/MCB-SMART-BOY
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'MCB-SMART-BOY/mcb-smart-boy.github.io'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate source commit input
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo 'source_sha must be a full lowercase 40-character hexadecimal commit SHA' >&2
+            exit 2
+          }
+      - name: Check out the public source at the requested commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: MCB-SMART-BOY/MCB-SMART-BOY
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - name: Record checked-out source commit
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          actual_sha=$(git rev-parse HEAD)
+          [[ "$actual_sha" == "$SOURCE_SHA" ]] || {
+            echo 'Checked-out source commit differs from requested commit' >&2
+            exit 1
+          }
+          mkdir -p run/provenance
+          printf '%s\n' "$actual_sha" > run/provenance/source-sha.txt
+          printf 'Source commit: %s\n' "$actual_sha" >> "$GITHUB_STEP_SUMMARY"
+      - name: Install locked project toolchain
+        run: ./dev.sh setup
+      - name: Validate and export static pages
+        run: ./validate.sh
+      - name: Upload source commit provenance (not part of the site)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: source-commit
+          path: run/provenance/source-sha.txt
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload same-run Pages artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          path: run/pages
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy the artifact built in this run
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

@@ -6,6 +6,35 @@ pub const SIDEBAR_CONTENT_MIN_PX: u16 = 448;
 pub const SIDEBAR_MOBILE_BREAKPOINT_PX: u16 = 768;
 const MAX_COOKIE_BYTES: usize = 64;
 
+/// Applies only the validated saved palette before CSS; hydration always reads immutable SSR attrs.
+/// Deliberately leaves data-ui, lang, and the component tree untouched if WASM never loads.
+/// Invariant: this grammar and its numeric bounds match `parse_preferences`.
+#[cfg(feature = "ssr")]
+pub(crate) const THEME_BOOTSTRAP: &str = r##"(function () {
+  try {
+    var MAX_COOKIE_BYTES = 64;
+    var U16_MAX = 65535;
+    var entries = document.cookie.split(";");
+    var value = null;
+    for (var index = 0; index < entries.length; index += 1) {
+      var entry = entries[index].trim();
+      if (entry.startsWith("mcb-ui=")) {
+        value = entry.slice("mcb-ui=".length);
+        break;
+      }
+    }
+    if (value === null || value.length > MAX_COOKIE_BYTES) return;
+    var match = /^(light|dark):[01]:([0-9]+)$/.exec(value);
+    if (!match || Number(match[2]) > U16_MAX) return;
+    var theme = match[1];
+    document.documentElement.setAttribute("data-theme", theme);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#09070f" : "#fcfbf7");
+  } catch (error) {
+    console.error("Failed to restore saved theme: browser cookie or document unavailable", error);
+  }
+})();"##;
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum Theme {
     #[default]
@@ -90,6 +119,41 @@ pub(crate) fn parse_preferences(value: Option<&str>) -> UiPreferences {
         sidebar_width_px: sidebar_width_px.clamp(SIDEBAR_MIN_PX, SIDEBAR_MAX_PX),
     }
 }
+/// Finds an exact cookie name without accepting similarly prefixed keys.
+pub(crate) fn find_cookie_value<'a>(cookie_header: &'a str, name: &str) -> Option<&'a str> {
+    cookie_header.split(';').find_map(|entry| {
+        let (key, value) = entry.trim().split_once('=')?;
+        (key == name).then_some(value)
+    })
+}
+
+#[cfg(feature = "hydrate")]
+pub(crate) fn read_browser_cookies() -> Option<String> {
+    use wasm_bindgen::JsCast;
+
+    let Some(document) = web_sys::window().and_then(|window| window.document()) else {
+        web_sys::console::error_1(
+            &"Failed to restore browser preferences: document unavailable".into(),
+        );
+        return None;
+    };
+    let Ok(document) = document.dyn_into::<web_sys::HtmlDocument>() else {
+        web_sys::console::error_1(
+            &"Failed to restore browser preferences: HTML document unavailable".into(),
+        );
+        return None;
+    };
+    match document.cookie() {
+        Ok(cookie) => Some(cookie),
+        Err(source) => {
+            web_sys::console::error_2(
+                &"Failed to restore browser preferences: cookie read rejected".into(),
+                &source,
+            );
+            None
+        }
+    }
+}
 
 #[cfg(feature = "hydrate")]
 pub(crate) fn persist_preferences(preferences: UiPreferences) {
@@ -112,8 +176,8 @@ pub(crate) fn persist_preferences(preferences: UiPreferences) {
         web_sys::console::error_1(&"无法保存界面偏好：HTML 文档不可用".into());
         return;
     };
-    if document.set_cookie(&cookie).is_err() {
-        web_sys::console::error_1(&"无法保存界面偏好：cookie 写入失败".into());
+    if let Err(source) = document.set_cookie(&cookie) {
+        web_sys::console::error_2(&"无法保存界面偏好：cookie 写入失败".into(), &source);
     }
 }
 
@@ -151,6 +215,14 @@ mod tests {
             assert_eq!(parse_preferences(Some(cookie)), UiPreferences::default());
         }
         assert_eq!(parse_preferences(None), UiPreferences::default());
+    }
+
+    #[test]
+    fn find_cookie_value_exact_name_ignores_unrelated_entries() {
+        let cookies = "mcb-ui-extra=dark:1:360; mcb-lang=en; mcb-ui=dark:1:360";
+        assert_eq!(find_cookie_value(cookies, "mcb-ui"), Some("dark:1:360"));
+        assert_eq!(find_cookie_value(cookies, "mcb-lang"), Some("en"));
+        assert_eq!(find_cookie_value(cookies, "missing"), None);
     }
 
     #[test]

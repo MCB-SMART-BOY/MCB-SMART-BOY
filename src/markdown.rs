@@ -217,9 +217,26 @@ mod tests {
         assert!(
             rendered
                 .html
-                .contains("href=\"/writing/book/intro#section-1\"")
+                .contains("href=\"/writing/book/intro/#section-1\"")
         );
-        assert!(rendered.html.contains("href=\"/writing/book/chapter\""));
+        assert!(rendered.html.contains("href=\"/writing/book/chapter/\""));
         assert_eq!(rendered.headings[0].id, "section-1");
+    }
+
+    #[test]
+    fn markdown_index_links_resolve_root_and_parent_directories() {
+        let root = render_content_markdown(
+            "[self](_index.md) [child](book/deep/_index.md)",
+            "/writing/_index.md",
+        );
+        assert!(root.html.contains("href=\"/writing/\""));
+        assert!(root.html.contains("href=\"/writing/book/deep/\""));
+
+        let nested = render_content_markdown(
+            "[parent](../_index.md) [root](../../_index.md)",
+            "/writing/book/deep/_index.md",
+        );
+        assert!(nested.html.contains("href=\"/writing/book/\""));
+        assert!(nested.html.contains("href=\"/writing/\""));
     }
 }

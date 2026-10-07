@@ -8,7 +8,7 @@ pub(crate) enum ReadingRoute {
 }
 
 pub(crate) fn resolve_reading_route(path: &str) -> Option<ReadingRoute> {
-    if path == "/writing" {
+    if path == "/writing/" {
         return Some(ReadingRoute::Index);
     }
     if !path.starts_with("/writing/") {

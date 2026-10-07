@@ -19,6 +19,13 @@ use super::{
 #[cfg(feature = "hydrate")]
 use super::reading_navigation::is_unmodified_click;
 #[cfg(feature = "hydrate")]
+use crate::preferences::read_browser_cookies;
+#[cfg(any(feature = "hydrate", test))]
+use crate::{
+    locale::parse_locale,
+    preferences::{find_cookie_value, parse_preferences},
+};
+#[cfg(feature = "hydrate")]
 use wasm_bindgen::JsCast;
 
 #[cfg(feature = "hydrate")]
@@ -82,6 +89,43 @@ fn is_main_navigation_link(element: &web_sys::Element) -> bool {
     link.get_attribute("href")
         .is_some_and(|href| href.starts_with('/'))
 }
+#[cfg(any(feature = "hydrate", test))]
+fn parse_browser_preferences(cookies: Option<&str>) -> (UiPreferences, Locale) {
+    let preferences =
+        parse_preferences(cookies.and_then(|value| find_cookie_value(value, "mcb-ui")));
+    let locale = parse_locale(cookies.and_then(|value| find_cookie_value(value, "mcb-lang")));
+    (preferences, locale)
+}
+
+#[cfg(feature = "hydrate")]
+fn restore_browser_preferences(
+    preferences: RwSignal<UiPreferences>,
+    locale: RwSignal<Locale>,
+    has_restored: RwSignal<bool>,
+) {
+    if has_restored.get_untracked() {
+        return;
+    }
+    let cookies = read_browser_cookies();
+    let (restored_preferences, restored_locale) = parse_browser_preferences(cookies.as_deref());
+    batch(move || {
+        preferences.set(restored_preferences);
+        locale.set(restored_locale);
+        has_restored.set(true);
+    });
+}
+
+#[cfg(feature = "hydrate")]
+fn set_document_attribute(
+    element: &web_sys::Element,
+    name: &str,
+    value: &str,
+    operation: &'static str,
+) {
+    if let Err(source) = element.set_attribute(name, value) {
+        web_sys::console::error_2(&operation.into(), &source);
+    }
+}
 
 #[cfg(feature = "hydrate")]
 fn sync_document_preferences(preferences: UiPreferences) {
@@ -89,22 +133,45 @@ fn sync_document_preferences(preferences: UiPreferences) {
         return;
     };
     if let Some(root) = document.document_element() {
-        let _ = root.set_attribute("data-theme", preferences.theme.as_str());
-        let _ = root.set_attribute("data-ui", &preferences.cookie_value());
+        set_document_attribute(
+            &root,
+            "data-theme",
+            preferences.theme.as_str(),
+            "Failed to update document theme",
+        );
+        set_document_attribute(
+            &root,
+            "data-ui",
+            &preferences.cookie_value(),
+            "Failed to update document UI state",
+        );
     }
-    if let Ok(Some(meta)) = document.query_selector("meta[name=theme-color]") {
-        let _ = meta.set_attribute("content", preferences.theme.color());
+    match document.query_selector("meta[name=theme-color]") {
+        Ok(Some(meta)) => set_document_attribute(
+            &meta,
+            "content",
+            preferences.theme.color(),
+            "Failed to update browser theme color",
+        ),
+        Ok(None) => {}
+        Err(source) => web_sys::console::error_2(
+            &"Failed to find browser theme color metadata".into(),
+            &source,
+        ),
     }
 }
 #[cfg(feature = "hydrate")]
 fn sync_document_locale(locale: Locale) {
-    if let Some(root) = web_sys::window()
+    let root = web_sys::window()
         .and_then(|window| window.document())
-        .and_then(|document| document.document_element())
-    {
-        if root.set_attribute("lang", locale.as_str()).is_err() {
-            web_sys::console::error_1(&"Failed to update document language".into());
-        }
+        .and_then(|document| document.document_element());
+    if let Some(root) = root {
+        set_document_attribute(
+            &root,
+            "lang",
+            locale.as_str(),
+            "Failed to update document language",
+        );
     }
 }
 
@@ -117,6 +184,8 @@ pub fn SiteShell(children: Children) -> impl IntoView {
     let locale =
         use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
     let is_hydrated = RwSignal::new(false);
+    #[cfg(feature = "hydrate")]
+    let has_restored_browser_preferences = RwSignal::new(false);
     let viewport_width = RwSignal::new(1440_u16);
     let is_drawer_open = RwSignal::new(false);
     let focus_main_after_close = RwSignal::new(false);
@@ -144,7 +213,14 @@ pub fn SiteShell(children: Children) -> impl IntoView {
             }
             path
         });
-        Effect::new(move || sync_document_preferences(preferences.get()));
+        Effect::new(move || {
+            restore_browser_preferences(preferences, locale, has_restored_browser_preferences);
+        });
+        Effect::new(move || {
+            if has_restored_browser_preferences.get() {
+                sync_document_preferences(preferences.get());
+            }
+        });
         Effect::new(move || {
             let is_collapsed = preferences.get().is_sidebar_collapsed;
             let is_mobile = viewport_width.get() < SIDEBAR_MOBILE_BREAKPOINT_PX;
@@ -171,8 +247,15 @@ pub fn SiteShell(children: Children) -> impl IntoView {
                 focus_element(replacement);
             }
         });
-        Effect::new(move || sync_document_locale(locale.get()));
         Effect::new(move || {
+            if has_restored_browser_preferences.get() {
+                sync_document_locale(locale.get());
+            }
+        });
+        Effect::new(move || {
+            if !has_restored_browser_preferences.get() {
+                return;
+            }
             if let Some(window) = web_sys::window() {
                 if let Ok(width) = window.inner_width() {
                     viewport_width.set(
@@ -186,7 +269,12 @@ pub fn SiteShell(children: Children) -> impl IntoView {
                     .document()
                     .and_then(|document| document.document_element())
                 {
-                    let _ = root.set_attribute("data-hydrated", "true");
+                    set_document_attribute(
+                        &root,
+                        "data-hydrated",
+                        "true",
+                        "Failed to mark document as hydrated",
+                    );
                     is_hydrated.set(true);
                 }
             }
@@ -249,7 +337,7 @@ pub fn SiteShell(children: Children) -> impl IntoView {
                         <a href=LandingSection::Home.href() target="_self">{move || LandingSection::Home.label(locale.get())}</a>
                         <a href=LandingSection::Focus.href() target="_self">{move || LandingSection::Focus.label(locale.get())}</a>
                         <a href=LandingSection::About.href() target="_self">{move || LandingSection::About.label(locale.get())}</a>
-                        <a href="/writing">{move || locale.get().writing()}</a>
+                        <a href="/writing/">{move || locale.get().writing()}</a>
                         <a href="https://github.com/MCB-SMART-BOY" target="_blank" rel="noopener noreferrer">"GITHUB ↗"</a>
                     </span></div>
                 </footer>
@@ -317,5 +405,22 @@ pub fn SiteShell(children: Children) -> impl IntoView {
                 <ReadingNavigation is_hydrated is_visible=is_mobile_visible reading_request=mobile_reading_request id_prefix="mobile"/>
             </div>
         </dialog>
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::preferences::{SIDEBAR_MAX_PX, Theme};
+
+    #[test]
+    fn parse_browser_preferences_valid_saved_values_restores_all_fields() {
+        let cookies = "session=ignored; mcb-ui=dark:1:999; mcb-lang=en";
+        let (preferences, locale) = parse_browser_preferences(Some(cookies));
+
+        assert_eq!(preferences.theme, Theme::Dark);
+        assert!(preferences.is_sidebar_collapsed);
+        assert_eq!(preferences.sidebar_width_px, SIDEBAR_MAX_PX);
+        assert_eq!(locale, Locale::En);
     }
 }

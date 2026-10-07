@@ -11,6 +11,7 @@ use crate::{
         SIDEBAR_CONTENT_MIN_PX, SIDEBAR_MAX_PX, SIDEBAR_MIN_PX, SIDEBAR_MOBILE_BREAKPOINT_PX,
         UiPreferences,
     },
+    reading::resolve_reading_route,
 };
 
 use super::{
@@ -346,10 +347,7 @@ pub(super) fn SidebarNavigation(show_writing_link: bool) -> impl IntoView {
     let locale =
         use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
     let is_landing_active = move |section| pathname.get() == "/" && active_section.get() == section;
-    let writing_active = move || {
-        let pathname = pathname.get();
-        pathname == "/writing" || pathname.starts_with("/writing/")
-    };
+    let writing_active = move || resolve_reading_route(&pathname.get()).is_some();
     view! {
         <nav class="sidebar-nav" aria-label=move || locale.get().select("主导航", "Main navigation")>
             {LandingSection::ALL.into_iter().map(move |section| view! {

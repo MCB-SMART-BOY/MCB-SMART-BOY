@@ -17,7 +17,7 @@ fn generate_articles(index: &ContentIndex, code: &mut String) {
         index.articles.len()
     ));
     for (number, article) in index.articles.iter().enumerate() {
-        let source = format!("{}.md", article.path);
+        let source = format!("{}.md", article.path.trim_end_matches('/'));
         code.push_str(&format!(
             "Post {{ path: {}, parent_path: {}, title: {}, summary: {}, date: {}, iso_date: {}, category: {}, reading_minutes: {}, index: {}, rendered: LazyLock::new(|| render_content_markdown({}, {})) }},\n",
             literal(&article.path), literal(&article.parent_path), literal(&article.title),
@@ -57,7 +57,7 @@ fn generate_directories(index: &ContentIndex, code: &mut String) {
             .parent_path
             .as_ref()
             .map_or("None".to_owned(), |path| format!("Some({})", literal(path)));
-        let source = format!("{}/_index.md", directory.path);
+        let source = format!("{}/_index.md", directory.path.trim_end_matches('/'));
         code.push_str(&format!(
             "pub(crate) static {}: Directory = Directory {{ id: {id}, path: {}, parent_path: {parent}, title: {}, entries: &[\n",
             directory_symbol(id), literal(&directory.path), literal(&directory.title),

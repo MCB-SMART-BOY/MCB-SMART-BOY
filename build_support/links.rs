@@ -46,13 +46,9 @@ pub(crate) fn resolve_content_link(
     if !relative.ends_with(".md") {
         return Ok(None);
     }
-    let parent = if source_path == "/writing" {
-        "/writing"
-    } else {
-        source_path
-            .rsplit_once('/')
-            .map_or("/writing", |(parent, _)| parent)
-    };
+    let parent = source_path
+        .rsplit_once('/')
+        .map_or("", |(parent, _)| parent);
     let mut segments: Vec<&str> = parent.trim_start_matches('/').split('/').collect();
     if segments.first() != Some(&"writing") {
         return Err(ContentLinkError::InvalidSource);
@@ -80,7 +76,8 @@ pub(crate) fn resolve_content_link(
         }
         segments.push(stem);
     }
-    let mut path = format!("/{}", segments.join("/"));
+    // URLs are directory-shaped even though Markdown sources remain file-shaped.
+    let mut path = format!("/{}/", segments.join("/"));
     if !fragment.is_empty() {
         path.push('#');
         path.push_str(fragment);

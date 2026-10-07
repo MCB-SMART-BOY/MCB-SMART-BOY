@@ -1,7 +1,21 @@
 #!/bin/sh
 set -eu
 
-ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+case "${BLOG_STATIC_BUILD-0}" in
+  0)
+    SITE_ROOT=site
+    HASH_FILES=false
+    ;;
+  1)
+    SITE_ROOT=site-release
+    HASH_FILES=true
+    ;;
+  *)
+    printf '%s\n' 'BLOG_STATIC_BUILD must be 0 or 1' >&2
+    exit 2
+    ;;
+esac
 TOOLCHAIN=1.99.0
 mkdir -p "$ROOT/run/cargo" "$ROOT/run/build" "$ROOT/run/cache" "$ROOT/run/tmp" \
   "$ROOT/run/trivy" "$ROOT/run/rustup" "$ROOT/run/data" "$ROOT/run/config"
@@ -17,13 +31,13 @@ export RUSTUP_TOOLCHAIN="$TOOLCHAIN"
 export RUSTUP_AUTO_INSTALL=0
 
 # Process environment takes precedence over cargo-leptos' parent-directory .env lookup.
-export LEPTOS_SITE_ROOT="$ROOT/run/site"
+export LEPTOS_SITE_ROOT="$ROOT/run/$SITE_ROOT"
 export LEPTOS_SITE_PKG_DIR=pkg
 export LEPTOS_ASSETS_DIR="$ROOT/public"
 export LEPTOS_STYLE_FILE="$ROOT/assets/site.css"
 export LEPTOS_BIN_TARGET_DIR="$ROOT/run/build"
 export LEPTOS_OUTPUT_NAME=mcb-smart-boy
-export LEPTOS_HASH_FILES=false
+export LEPTOS_HASH_FILES="$HASH_FILES"
 cd "$ROOT"
 
 
@@ -38,7 +52,8 @@ else
 fi
 
 LOCAL_CARGO=$(rustup which --toolchain "$TOOLCHAIN" cargo)
-export PATH="$CARGO_HOME/bin:$(dirname "$LOCAL_CARGO"):$PATH"
+LOCAL_CARGO_BIN=$(dirname -- "$LOCAL_CARGO")
+export PATH="$CARGO_HOME/bin:$LOCAL_CARGO_BIN:$PATH"
 export LEPTOS_BIN_CARGO_COMMAND="$LOCAL_CARGO"
 if [ "${1:-}" = setup ]; then
   if [ ! -x "$CARGO_HOME/bin/cargo-leptos" ] ||
@@ -48,6 +63,11 @@ if [ "${1:-}" = setup ]; then
   if [ ! -x "$CARGO_HOME/bin/wasm-bindgen" ] ||
     ! "$CARGO_HOME/bin/wasm-bindgen" --version | grep -F '0.2.129' >/dev/null; then
     cargo install wasm-bindgen-cli --version 0.2.129 --locked --root "$CARGO_HOME"
+  fi
+  if [ ! -x "$CARGO_HOME/bin/wasm-opt" ] ||
+    ! cargo install --list --root "$CARGO_HOME" | grep -Fx 'wasm-opt v0.116.1:' >/dev/null; then
+    # Release WASM has no DWARF; omit the optional LLVM debug-info passes.
+    cargo install wasm-opt --version 0.116.1 --locked --no-default-features --root "$CARGO_HOME"
   fi
   exit 0
 fi

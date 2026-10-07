@@ -1,16 +1,17 @@
 use axum::Router;
 use leptos::prelude::LeptosOptions;
-use leptos_axum::{LeptosRoutes, file_and_error_handler, generate_route_list};
+use leptos_axum::{AxumRouteListing, LeptosRoutes, file_and_error_handler};
+use leptos_router::{Method, SsrMode};
 
-use crate::app::{App, shell};
+use crate::{app::shell, content::page_paths};
 
 pub fn build_app(options: LeptosOptions) -> Router {
-    let routes = generate_route_list(App);
+    let routes = page_paths()
+        .map(|path| AxumRouteListing::new(path.to_owned(), SsrMode::Async, [Method::Get], vec![]))
+        .collect();
+    let render_options = options.clone();
     Router::new()
-        .leptos_routes(&options, routes, {
-            let options = options.clone();
-            move || shell(options.clone())
-        })
+        .leptos_routes(&options, routes, move || shell(render_options.clone()))
         .fallback(file_and_error_handler(shell))
         .with_state(options)
 }
@@ -18,7 +19,7 @@ pub fn build_app(options: LeptosOptions) -> Router {
 #[cfg(test)]
 mod tests {
     use super::build_app;
-    use crate::content::{find_directory, find_post};
+    use crate::content::{find_directory, find_post, page_paths};
     use axum::{
         body::{Body, to_bytes},
         http::{Request, StatusCode, header::COOKIE},
@@ -27,13 +28,13 @@ mod tests {
     use tower::ServiceExt;
 
     const MAX_TEST_RESPONSE_BYTES: usize = 1024 * 1024;
-    const DEMO_DIRECTORY_PATH: &str = "/writing/demo-notes";
-    const SYSTEMS_DIRECTORY_PATH: &str = "/writing/demo-notes/systems";
-    const SYSTEMS_POST_PATH: &str = "/writing/demo-notes/systems/small-systems";
+    const DEMO_DIRECTORY_PATH: &str = "/writing/demo-notes/";
+    const SYSTEMS_DIRECTORY_PATH: &str = "/writing/demo-notes/systems/";
+    const SYSTEMS_POST_PATH: &str = "/writing/demo-notes/systems/small-systems/";
     const ARTICLE_PATHS: [&str; 3] = [
         SYSTEMS_POST_PATH,
-        "/writing/demo-notes/rust-web/rust-web-notes",
-        "/writing/demo-notes/learning/notes-on-learning",
+        "/writing/demo-notes/rust-web/rust-web-notes/",
+        "/writing/demo-notes/learning/notes-on-learning/",
     ];
 
     async fn request_page_with_cookie(path: &str, cookie: Option<&str>) -> (StatusCode, String) {
@@ -141,7 +142,7 @@ mod tests {
 
     #[tokio::test]
     async fn archive_lists_only_direct_content_children() {
-        let (status, body) = request_page("/writing").await;
+        let (status, body) = request_page("/writing/").await;
         assert_eq!(status, StatusCode::OK);
         let targets = collect_link_targets(main_markup(&body));
         assert!(targets.contains(&DEMO_DIRECTORY_PATH));
@@ -166,14 +167,14 @@ mod tests {
         assert!(main.contains(directory.render().html.as_str()));
         let targets = collect_link_targets(main);
         for name in ["systems", "rust-web", "learning"] {
-            let path = format!("{DEMO_DIRECTORY_PATH}/{name}");
+            let path = format!("{DEMO_DIRECTORY_PATH}{name}/");
             assert!(targets.contains(&path.as_str()));
         }
         for path in ARTICLE_PATHS {
             assert!(!targets.contains(&path));
         }
         let crumbs = breadcrumb_markup(&body);
-        assert!(collect_link_targets(crumbs).contains(&"/writing"));
+        assert!(collect_link_targets(crumbs).contains(&"/writing/"));
         assert_eq!(crumbs.matches("aria-current=\"page\"").count(), 1);
     }
 
@@ -183,7 +184,7 @@ mod tests {
             .into_iter()
             .zip(ARTICLE_PATHS)
         {
-            let (status, body) = request_page(&format!("{DEMO_DIRECTORY_PATH}/{name}")).await;
+            let (status, body) = request_page(&format!("{DEMO_DIRECTORY_PATH}{name}/")).await;
             assert_eq!(status, StatusCode::OK);
             let main = main_markup(&body);
             let targets = collect_link_targets(main);
@@ -194,7 +195,7 @@ mod tests {
             assert!(main.contains(find_post(own_post).expect("fixture article").summary));
             let crumbs = breadcrumb_markup(&body);
             let ancestors = collect_link_targets(crumbs);
-            assert!(ancestors.contains(&"/writing"));
+            assert!(ancestors.contains(&"/writing/"));
             assert!(ancestors.contains(&DEMO_DIRECTORY_PATH));
             assert_eq!(crumbs.matches("aria-current=\"page\"").count(), 1);
         }
@@ -206,7 +207,7 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
         let crumbs = breadcrumb_markup(&body);
         let ancestors = collect_link_targets(crumbs);
-        for ancestor in ["/writing", DEMO_DIRECTORY_PATH, SYSTEMS_DIRECTORY_PATH] {
+        for ancestor in ["/writing/", DEMO_DIRECTORY_PATH, SYSTEMS_DIRECTORY_PATH] {
             assert!(ancestors.contains(&ancestor));
         }
         assert_eq!(crumbs.matches("aria-current=\"page\"").count(), 1);
@@ -216,9 +217,9 @@ mod tests {
     #[tokio::test]
     async fn nonexistent_content_paths_return_not_found() {
         for path in [
-            "/writing/no-such-directory",
-            "/writing/demo-notes/no-such-directory",
-            "/writing/demo-notes/systems/no-such-article",
+            "/writing/no-such-directory/",
+            "/writing/demo-notes/no-such-directory/",
+            "/writing/demo-notes/systems/no-such-article/",
         ] {
             let (status, _) = request_page(path).await;
             assert_eq!(status, StatusCode::NOT_FOUND, "unexpected route: {path}");
@@ -226,11 +227,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn trailing_slash_content_paths_render_not_found_instead_of_content() {
+    async fn no_slash_content_paths_return_not_found_instead_of_aliasing() {
         for path in [
-            "/writing/",
-            "/writing/demo-notes/",
-            "/writing/demo-notes/systems/small-systems/",
+            "/writing",
+            "/writing/demo-notes",
+            "/writing/demo-notes/systems/small-systems",
         ] {
             let (status, body) = request_page(path).await;
             assert_eq!(status, StatusCode::NOT_FOUND, "unexpected route: {path}");
@@ -244,13 +245,13 @@ mod tests {
     #[tokio::test]
     async fn legacy_content_addresses_return_not_found_without_aliases() {
         for path in [
-            "/writing/books/demo-notes",
-            "/writing/books/demo-notes/chapters/systems",
-            "/writing/books/demo-notes/chapters/rust-web",
-            "/writing/books/demo-notes/chapters/learning",
-            "/writing/small-systems",
-            "/writing/rust-web-notes",
-            "/writing/notes-on-learning",
+            "/writing/books/demo-notes/",
+            "/writing/books/demo-notes/chapters/systems/",
+            "/writing/books/demo-notes/chapters/rust-web/",
+            "/writing/books/demo-notes/chapters/learning/",
+            "/writing/small-systems/",
+            "/writing/rust-web-notes/",
+            "/writing/notes-on-learning/",
         ] {
             let (status, _) = request_page(path).await;
             assert_eq!(
@@ -264,10 +265,10 @@ mod tests {
     #[tokio::test]
     async fn nested_writing_paths_do_not_resolve_by_prefix() {
         for path in [
-            "/writing/demo-notes/extra",
-            "/writing/demo-notes/systems/extra",
-            "/writing/demo-notes/systems/small-systems/extra",
-            "/writing/demo-notes/systems/small-systems.md",
+            "/writing/demo-notes/extra/",
+            "/writing/demo-notes/systems/extra/",
+            "/writing/demo-notes/systems/small-systems/extra/",
+            "/writing/demo-notes/systems/small-systems.md/",
         ] {
             let (status, _) = request_page(path).await;
             assert_eq!(status, StatusCode::NOT_FOUND, "unexpected route: {path}");
@@ -315,7 +316,7 @@ mod tests {
 
     #[tokio::test]
     async fn article_unknown_slug_returns_not_found() {
-        let (status, _) = request_page("/writing/no-such-article").await;
+        let (status, _) = request_page("/writing/no-such-article/").await;
         assert_eq!(status, StatusCode::NOT_FOUND);
     }
 
@@ -323,6 +324,22 @@ mod tests {
     async fn unknown_path_returns_not_found() {
         let (status, _) = request_page("/not-present").await;
         assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn unknown_writing_and_root_paths_share_generic_404_navigation() {
+        let (expected_status, expected_body) = request_page("/404.html").await;
+        assert_eq!(expected_status, StatusCode::NOT_FOUND);
+        for path in ["/not-present", "/writing/no-such-article/"] {
+            let (status, body) = request_page(path).await;
+            assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
+            assert_eq!(main_markup(&body), main_markup(&expected_body), "{path}");
+            assert_eq!(
+                collect_link_targets(find_active_navigation(&body)),
+                collect_link_targets(find_active_navigation(&expected_body)),
+                "{path}"
+            );
+        }
     }
 
     #[tokio::test]
@@ -337,19 +354,32 @@ mod tests {
     async fn reading_routes_keep_complete_tree_and_exact_current_page() {
         let expected = [
             "/",
-            "/writing",
+            "/writing/",
             DEMO_DIRECTORY_PATH,
             SYSTEMS_DIRECTORY_PATH,
             SYSTEMS_POST_PATH,
-            "/writing/demo-notes/rust-web",
-            "/writing/demo-notes/rust-web/rust-web-notes",
-            "/writing/demo-notes/learning",
-            "/writing/demo-notes/learning/notes-on-learning",
+            "/writing/demo-notes/rust-web/",
+            "/writing/demo-notes/rust-web/rust-web-notes/",
+            "/writing/demo-notes/learning/",
+            "/writing/demo-notes/learning/notes-on-learning/",
         ];
+        let generated = page_paths().collect::<Vec<_>>();
+        assert_eq!(generated.len(), expected.len());
+        assert_eq!(
+            generated
+                .iter()
+                .copied()
+                .collect::<std::collections::HashSet<_>>(),
+            expected.into_iter().collect()
+        );
+        for path in generated {
+            let (status, _) = request_page(path).await;
+            assert_eq!(status, StatusCode::OK, "generated route: {path}");
+        }
         for path in [
-            "/writing",
+            "/writing/",
             DEMO_DIRECTORY_PATH,
-            "/writing/demo-notes/rust-web",
+            "/writing/demo-notes/rust-web/",
             SYSTEMS_POST_PATH,
         ] {
             let (status, body) = request_page(path).await;
@@ -420,13 +450,13 @@ mod tests {
             "/",
             "/focus",
             "/about",
-            "/writing",
+            "/writing/",
             DEMO_DIRECTORY_PATH,
             SYSTEMS_DIRECTORY_PATH,
             "/missing",
-            "/writing/no-such-article",
-            "/writing/no-such-directory",
-            "/writing/demo-notes/no-such-directory",
+            "/writing/no-such-article/",
+            "/writing/no-such-directory/",
+            "/writing/demo-notes/no-such-directory/",
         ] {
             let (_, body) = request_page(path).await;
             assert!(

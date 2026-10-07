@@ -1,7 +1,7 @@
 use leptos::prelude::*;
 use leptos_meta::provide_meta_context;
 use leptos_router::{
-    SsrMode, StaticSegment,
+    SsrMode,
     components::{Route, Router, Routes},
     path,
 };
@@ -9,21 +9,16 @@ use leptos_router::{
 use crate::{
     components::SiteShell,
     locale::Locale,
-    pages::{HomePage, NotFoundPage, ReadingContentPage},
+    pages::{NotFoundPage, SiteContent},
     preferences::UiPreferences,
 };
 #[cfg(feature = "ssr")]
-use crate::{locale::parse_locale, preferences::parse_preferences};
+use crate::{
+    locale::parse_locale,
+    preferences::{find_cookie_value, parse_preferences},
+};
 #[cfg(feature = "ssr")]
-use leptos_meta::MetaTags;
-
-#[cfg(feature = "ssr")]
-fn read_cookie_value<'a>(cookie_header: &'a str, cookie_name: &str) -> Option<&'a str> {
-    cookie_header
-        .split(';')
-        .filter_map(|part| part.trim().split_once('='))
-        .find_map(|(name, value)| (name == cookie_name).then_some(value))
-}
+use leptos_meta::{HashedStylesheet, MetaTags};
 
 #[cfg(feature = "ssr")]
 fn read_cookie_preferences() -> (UiPreferences, Locale) {
@@ -38,8 +33,8 @@ fn read_cookie_preferences() -> (UiPreferences, Locale) {
     });
     let value = cookie.as_deref().unwrap_or_default();
     (
-        parse_preferences(read_cookie_value(value, "mcb-ui")),
-        parse_locale(read_cookie_value(value, "mcb-lang")),
+        parse_preferences(find_cookie_value(value, "mcb-ui")),
+        parse_locale(find_cookie_value(value, "mcb-lang")),
     )
 }
 
@@ -54,13 +49,15 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
     let theme_color = preferences.theme.color();
     view! {
         <!DOCTYPE html>
-        <html lang=locale.as_str() data-theme=initial_theme data-ui=initial_ui style=initial_width>
+        <html lang=locale.as_str() data-theme=initial_theme data-ui=initial_ui.clone()
+            data-ssr-ui=initial_ui data-ssr-lang=locale.as_str() style=initial_width>
             <head>
                 <meta charset="utf-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
                 <meta name="theme-color" content=theme_color/>
                 <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
-                <link rel="stylesheet" href="/pkg/mcb-smart-boy.css"/>
+                <script inner_html=crate::preferences::THEME_BOOTSTRAP></script>
+                <HashedStylesheet options=options.clone()/>
                 <AutoReload options=options.clone()/>
                 <HydrationScripts options/>
                 <MetaTags/>
@@ -81,9 +78,7 @@ pub fn App() -> impl IntoView {
         <Router>
             <SiteShell>
                 <Routes fallback=NotFoundPage>
-                    <Route path=StaticSegment("") view=HomePage ssr=SsrMode::Async/>
-                    <Route path=path!("/writing") view=ReadingContentPage ssr=SsrMode::Async/>
-                    <Route path=path!("/writing/*content_path") view=ReadingContentPage ssr=SsrMode::Async/>
+                    <Route path=path!("/*path") view=SiteContent ssr=SsrMode::Async/>
                 </Routes>
             </SiteShell>
         </Router>

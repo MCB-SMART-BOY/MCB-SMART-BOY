@@ -44,6 +44,13 @@ pub(crate) enum ContentEntry {
 
 include!(concat!(env!("OUT_DIR"), "/content_index.rs"));
 
+#[cfg(feature = "ssr")]
+pub(crate) fn page_paths() -> impl Iterator<Item = &'static str> {
+    std::iter::once("/")
+        .chain(DIRECTORIES.iter().map(|directory| directory.path))
+        .chain(POSTS.iter().map(|post| post.path))
+}
+
 pub(crate) fn find_directory(path: &str) -> Option<&'static Directory> {
     let index = DIRECTORIES
         .binary_search_by_key(&path, |directory| directory.path)

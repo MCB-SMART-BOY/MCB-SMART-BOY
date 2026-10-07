@@ -1,6 +1,6 @@
 # MCB / LOG 项目上下文
 
-本项目是 Rust 全栈个人博客；首页、关注领域、关于按顺序组成同一份可自然滚动的文档，真实项目、社团与公开经历集中在关于分区，文章归档和阅读保持独立路由。三篇文章为示例，并非作者已发布成果，始终与真实项目分开展示。根目录 `README.md` 仅用于简短的 GitHub 视觉和技术栈展示，不承载教育、经历、社团、荣誉、详细项目资料或博客手册；不得将博客个人资料自动同步到 README。个人资料以用户提供并批准公开的内容为准，不虚构履历与成果；博客两种主题共用暖纸细网格的布局与装饰，浅色参考 `resume-template`，深色保留紫黑配色，不另设一套版式。本文件负责博客运行说明、代码事实、设计参考和维护路由。
+本项目是 Rust 静态个人博客：构建时生成完整 HTML，浏览器使用 Rust/WASM 接管交互；Axum 保留为构建和本地开发工具，不是线上服务。首页、关注领域、关于按顺序组成同一份可自然滚动的文档，真实项目、社团与公开经历集中在关于分区，文章归档和阅读保持独立路由。三篇文章为示例，并非作者已发布成果，始终与真实项目分开展示。根目录 `README.md` 仅用于简短的 GitHub 视觉和技术栈展示，不承载教育、经历、社团、荣誉、详细项目资料或博客手册；不得将博客个人资料自动同步到 README。个人资料以用户提供并批准公开的内容为准，不虚构履历与成果；博客两种主题共用暖纸细网格的布局与装饰，浅色参考 `resume-template`，深色保留紫黑配色，不另设一套版式。本文件负责博客运行说明、代码事实、设计参考和维护路由。
 
 个人资料仅公开 `MCB` / `MCB-SMART-BOY` 与 GitHub；经历保留脱敏技术内容，不记录或发布真实姓名、联系方式、证件照、完整简历、合作单位及内部业务数据。教育不补造学校，项目不宣称未经核实的性能或证明成功率。CodeFlow·代码灵动为作者创办的社团，B站入口使用用户明确提供的 [社团主页](https://space.bilibili.com/3493283751791185)，不增加视频嵌入、二维码或账号查询。外站访问曾返回验证码，不能将链接配置正确写成账号内容核验通过。荣誉与会议交流分别表述。
 
@@ -11,20 +11,25 @@
 | 内容目录、文章正文与元数据 | `content/posts/**` 的真实位置、`_index.md` 和文章 front matter；作者规范见 [content-format.md](content-format.md) |
 | 构建内容索引与通用查询 | `build.rs`、`build_support/`、`src/content.rs`；不手写文章表或归属表 |
 | 页面路由与 SSR 文档 | `src/app.rs`、`src/reading.rs`、`src/server.rs`、`src/main.rs` |
+| 静态导出、资源校验与旧产物替换 | `src/export.rs`、`src/export/assets.rs`、`src/export/output.rs`；页面清单来自 `src/content.rs::page_paths` |
 | 单页首页、关注与关于分区 / 归档、详情、404 | `src/pages/`；根文档由 `home.rs` 组合，不单独注册关注和关于路由 |
 | 单页可见分区、导航状态与滚动过渡 | `src/landing.rs`、`src/landing_motion.rs`；由 `SiteShell` 提供共享活动状态，侧栏和面包屑共同使用；动效样式见 `assets/site.css` |
 | 公开简介与项目事实 | `src/profile.rs`；静态中英资料，不进入文章索引，不在运行时拉取 GitHub |
 | 博客项目与社团展示 / 品牌图片 | `src/components/profile.rs` / `public/images/mcb-logo.png`、`codeflow-logo.png`；640×640 去元数据 PNG，保留完整图形与白底；个人 Logo 也用于侧栏展开、折叠与移动菜单，不替换 favicon 或 README 资源 |
 | 导航、侧栏、顶栏、面包屑、分享与移动菜单 | `src/components/` |
 | 阅读树 / 文章目录与滚动高亮 / 响应式焦点 | `src/components/reading_navigation.rs`、`reading_directory.rs` / `current_directory.rs`、`article_outline.rs` / `directory_focus.rs` |
-| 主题、侧栏宽度与 cookie | `src/preferences.rs`；语言及 `mcb-lang` cookie 见 `src/locale.rs` |
+| 主题、侧栏宽度与 cookie / 静态首屏恢复 | `src/preferences.rs`、`src/components/shell.rs`、`src/lib.rs`；语言及 `mcb-lang` cookie 见 `src/locale.rs` |
 | Markdown HTML 安全边界 | `src/markdown.rs` |
 | 色彩和布局 / 本地字体与许可 / 本地图标 | `assets/site.css` / `public/fonts/` / `public/favicon.svg` |
-| Rust 和前端 WASM 构建 / 依赖审计 | `Cargo.toml`、`Cargo.lock`、`dev.sh`、`validate.sh`、`deny.toml` |
+| Rust 和前端 WASM 构建 / 静态发布 / 依赖审计 | `Cargo.toml`、`Cargo.lock`、`dev.sh`、`export.sh`、`validate.sh`、`deny.toml`；独立 Pages 仓库的安装配置见 `.omp/pages/workflow.yml` |
 | 路由依赖的历史导航补丁 | `vendor/leptos_router/src/location/history.rs`；由根 `Cargo.toml` 的 `[patch.crates-io]` 选择 |
 | GitHub 用户自我介绍 / 本地图形资源 | `README.md` / `.github/assets/profile-*.svg`；双色横幅、终端卡片、兴趣卡片和技术图标 |
 
-架构为 Axum HTTP + Leptos SSR/hydrate（浏览器端 Rust/WASM）；不需要 Node/Bun 或外部页面资产。移动端 SSR 在 WASM 不可用时仍提供真实链接导航；动态主题、折叠、宽度拖动、移动抽屉、分享与语言选择需要 hydration。首屏主题与侧栏设定由服务端读取 `mcb-ui` cookie，语言由 `mcb-lang` cookie 读取，合法值仅 `zh-CN` 和 `en`，默认中文。服务端渲染 `<html lang>` 及同源 bootstrap 数据，客户端使用同一初值避免 SSR/hydration 不一致。语言切换只翻译固定界面文案，三篇示例文章正文与标题依旧是中文原文（`lang="zh-CN"` 并标注原文）；不要把英文 UI 误报为英文版文章。所有来自 cookie 的值须受解析器限制，客户端仅更新对应字段。Markdown 仅收录仓库内容，未暴露投稿接口；原始 HTML 和不安全链接不被作为可执行页面内容接受。
+发布流程为构建时 Axum/Leptos SSR → 完整静态 HTML、CSS、JS/WASM 和本地资源 → 浏览器 hydration。线上不运行 Axum，也不引入 Node/Bun 服务或外部页面资产。本地仍可使用 SSR 服务开发。无 JavaScript 或 WASM 加载失败时，正文、真实页面链接和原生文章目录仍可用；动态主题、折叠、宽度拖动、移动抽屉、分享与语言选择需要 hydration。
+
+静态 HTML 统一使用中文、浅色、展开侧栏和 248px 宽度；`data-ssr-ui` / `data-ssr-lang` 保存不可变初值，客户端必须用它们完成首次 hydration。文档头部脚本在 CSS 前校验 `mcb-ui`，只提前恢复色彩，不翻译文案、不改变组件结构。接管后一次性读取并校验 `mcb-ui` / `mcb-lang`，恢复主题、语言、折叠和宽度；不能用默认值覆盖保存的 cookie，也不能触发折叠飞入或水波。语言合法值仅 `zh-CN` 和 `en`；无效值或读取失败使用默认值。英文偏好可能短暂显示中文 UI，这是单份静态 HTML 的取舍，不是按 cookie 个性化的服务端首屏。本地 SSR 开发仍支持请求 cookie 初值。
+
+语言切换只翻译固定界面文案，三篇示例文章正文与标题依旧是中文原文（`lang="zh-CN"` 并标注原文）；不要把英文 UI 误报为英文版文章。所有来自 cookie 的值须受解析器限制，客户端仅更新对应字段。Markdown 仅收录仓库内容，未暴露投稿接口；原始 HTML 和不安全链接不被作为可执行页面内容接受。
 
 `Cargo.toml` 的 `disable-erase-components = true` 保持服务端与 WASM 的组件 hydration 标记一致：在真实浏览器中，去掉此设置曾使顶栏按钮失效并触发 `Unrecoverable hydration error`。变更 Leptos 版本或调整组件边界时必须用浏览器重新验证首页、文章与交互；编译和 SSR 路由测试不足以证明 hydration 成功。
 
@@ -40,7 +45,7 @@
 
 已复现的上游缺陷是 Back→Forward 后内部 `path_stack` 未同步，再点原目录时正文改变、地址栏不变。补丁以浏览器实际完整 URL（含 query/hash）决定是否 push；popstate 同步当前栈顶，replace 不追加历史项，浏览器提交错误保留原始 `JsValue` 并记录，不新增 panic。内部栈仍只是路由过渡动画的方向估计，不能区分重复 URL 的真实历史游标；本站未启用该框架 transition，地址提交不依赖此估计。
 
-维护者升级框架时须先检查上游是否真正修复，再移除补丁并复跑浏览器回归：`/writing`→系统目录→Rust 目录→Rust 文章→Back→Forward→Rust 目录；检查网址、正文、面包屑、左树和随后 Back 的目标一致。同时覆盖两页往返、重复 URL、多步历史、query/hash、相同完整 URL 去重及 replace。现有 Rust/SSR 测试不执行浏览器 History API，不能代替这组实际交互。禁止修改 `run/cargo/registry` 缓存充当修复，或在应用侧补写网址掩盖分叉。
+维护者升级框架时须先检查上游是否真正修复，再移除补丁并复跑浏览器回归：`/writing/`→系统目录→Rust 目录→Rust 文章→Back→Forward→Rust 目录；检查网址、正文、面包屑、左树和随后 Back 的目标一致。同时覆盖两页往返、重复 URL、多步历史、query/hash、相同完整 URL 去重及 replace。现有 Rust/SSR 测试不执行浏览器 History API，不能代替这组实际交互。禁止修改 `run/cargo/registry` 缓存充当修复，或在应用侧补写网址掩盖分叉。
 
 本地 path 源码不受 `Cargo.lock` 的 registry checksum 校验；`--locked` 只锁定依赖图。补丁源码必须保留在版本审查、密钥扫描和依赖审计范围内，不因放入 `vendor/` 而排除。
 
@@ -56,7 +61,7 @@
 
 ## 项目内工具链与启动
 
-需要系统已有的 `rustup` 命令、可用网络及本机编译依赖。`./dev.sh` 将 Rust 1.99.0、WASM 目标、cargo-leptos 0.3.10、wasm-bindgen-cli 0.2.129、Cargo 注册表、编译产物与临时文件安装或生成在仓库的 `run/`；不安装 Bun/Node，不重装或移动系统工具。首次准备时间和空间取决于网络及本机编译环境。
+需要系统已有的 `rustup` 命令、可用网络及本机 Rust/C++ 编译依赖。`./dev.sh` 将 Rust 1.99.0、WASM 目标、cargo-leptos 0.3.10、wasm-bindgen-cli 0.2.129、wasm-opt 0.116.1、Cargo 注册表、编译产物与临时文件安装或生成在仓库的 `run/`；不安装 Bun/Node，不重装或移动系统工具。wasm-opt 对应 Binaryen 116，以 `--no-default-features` 排除 release WASM 不需要的可选 LLVM/DWARF 调试信息支持，仍执行真实优化；不能用跳过优化器代替 release 构建。首次准备时间和空间取决于网络及本机编译环境。
 
 `Cargo.toml` 的开发配置使用 `debug = 1` 保留有限调试信息和行号；完整调试信息曾使 Leptos 单态化产物超过链接器 4 GiB 调试节限制并报 `R_X86_64_32 out of range`。这不改变发布配置，但开发调试不再包含完整变量/类型信息；不要用关闭 hydration 一致性设置来规避链接问题。
 
@@ -70,9 +75,25 @@
 
 **本项目所有 Cargo 与 Rustup 命令均经 `./dev.sh` 执行**，例如 `./dev.sh test --locked`、`./dev.sh fmt -- --check`、`./dev.sh clippy --all-targets -- -D warnings`、`./dev.sh -- rustc --version`。脚本隔离 `CARGO_HOME`、`RUSTUP_HOME`、`CARGO_TARGET_DIR`、XDG 数据/缓存/配置、`TMPDIR`、Trivy 缓存、Leptos 输出和构建器工具安装目录到 `run/`；直接执行 `cargo`/`rustup` 或外部浏览器不受约束，可能写入用户目录。`run/` 和 `.env` 已忽略，不会提交编译产物和本地设置。其他工具可用 `./dev.sh -- <命令>` 继承隔离变量。
 
+### 静态构建与发布
+
+准备工具链后运行 `./export.sh`。脚本使用独立的 `run/site-release/` 构建 release SSR/WASM，再直接调用同一次 cargo-leptos 构建的 `run/build/release/mcb-smart-boy export`，输出完整站点到 `run/pages/`，不监听 HTTP 端口。开发构建继续使用 `run/site/`，两套资源不混用。不要另用不同配置重建导出二进制，否则可能破坏 hydration 标记一致性。
+
+导出页面、阅读树、面包屑和 Markdown 内容链接共用生成索引；不手写导出网址表。每个规范网址写成目录内 `index.html`，未知网址使用真实错误页 `404.html`，不是首页副本或 JS 跳转。`src/app.rs` 的单一 `SiteContent` 分发器使未知根路径和未知 `/writing/...` 使用相同错误页面结构；本地 SSR 通过官方 `LeptosRoutes` 注册索引网址，以保留 executor 初始化、请求和 meta 上下文。
+
+CSS、JS、WASM 使用构建生成的哈希文件名，HTML 引用与最终资源一致；发布包不包含 AutoReload、开发 WebSocket 或服务器二进制。导出检查必需的哈希资源、路径冲突、符号／硬链接和文件归属，在临时目录组装成功后才替换 `run/pages/`。已有输出必须与 `.mcb-static-export` 清单完全匹配；不要手工往产物目录加入文件。准备失败保留旧输出，替换失败尝试恢复；安装和恢复都失败时保留备份并报告路径与两个原因，不能宣称所有文件系统故障都可自动回滚。构建输入视作可信本地源码，链接检查不是针对同权限恶意并发改写的安全沙箱。
+
+字体、图片及完整许可原样保留。本轮发布目录约 93 MiB，其中字体约 90 MiB；本地未压缩静态服务的中文首页首次资源请求约 43.5 MiB，其中 WASM 约 1.83 MiB。这不是线上压缩传输量或性能基准。完整字体仍是主要下载负担，本轮未擅自裁剪字形或更换字体。
+
+`.omp/pages/workflow.yml` 提供独立 Pages 仓库 `MCB-SMART-BOY/mcb-smart-boy.github.io` 使用的 `.github/workflows/pages.yml` 配置，不在源码仓库自动部署。网站地址为 `https://mcb-smart-boy.github.io/`，Pages source 使用 GitHub Actions。首次安装前须确认目标仓库用途，只在获得对应授权后创建或更新，不覆盖已有站点或未识别内容。
+
+发布只接受手动提供的完整、小写 40 位源码 commit SHA，从 `MCB-SMART-BOY/MCB-SMART-BOY` 检出并核对实际 SHA，运行锁定工具链和项目验证器，上传同一 run 的 Pages artifact 后部署。源码 SHA 另存为 provenance artifact，不混入网站。默认 `contents: read`，仅 deploy job 增加 `pages: write` / `id-token: write`；Action 固定完整提交，不保存 checkout 凭据，不新增跨仓库 PAT 或 push 自动发布。全局质量门仍是本地独立要求，不把项目 validator 冒称为所有安全检查。
+
+提交、推送、创建仓库、部署和回滚均需对应授权。首次上线没有旧版可恢复；发布失败时停止后续发布并保留诊断，不虚构回滚基线。后续恢复旧版前先核对旧 run 的已验收 artifact 是否仍可用；产物过期时按记录的旧 SHA 重新构建、验收后再发布。每次发布后必须实际验证 HTTPS、深链刷新、无尾斜线请求、真实 404、WASM MIME、资源完整性，并记录已验收的源码 SHA 和 workflow run；本地静态服务通过不能替代 Pages 平台验收。线上回滚未经演练时必须明确说明。
+
 ## 验证与维护
 
-1. 先运行直接相关的功能和 HTTP 场景、浏览器实际交互，再运行项目验证器 `./validate.sh`（WASM typecheck、SSR/WASM 构建、Rust 测试）。
+1. 先以纯静态服务提供 `run/pages/`，验证首页、全部目录和文章、深层锚点、query/hash、刷新、404、历史导航与原有交互；覆盖两种语言／主题、手机、无 JavaScript、WASM 失败／延迟及异常 cookie，再运行项目验证器 `./validate.sh`（WASM typecheck、SSR/WASM 构建、Rust 测试、release 静态导出）。改动发布配置时另做 actionlint 与 ShellCheck。
 2. 最后运行通用质量门：`./dev.sh -- "$HOME/.omp/agent/validate.sh"`；其与项目 validator 相互独立。适用 gate 无法通过时明确记录原因，不把跳过当作通过。
 3. 除非用户明确授权，不提交、推送、部署或改动个人主页中已核实的资料。用户明确同意的依赖/SSR 迁移取代旧 Askama 模板；不保留旧端点或重复渲染路径。
 
@@ -81,8 +102,9 @@
 | 路径 | 内容 |
 |---|---|
 | `/`、`/#home` | 单页文档 / 首屏简介；主按钮仅保留阅读文章和了解我，不重复展示精选项目摘要 |
-| `/writing` | 内容根 `_index.md` 的介绍与实际直接子项 |
-| `/writing/*content_path` | 按真实内容路径精确分发目录页或文章页；不存在的路径及末尾斜线为 404 |
+| `/writing/` | 内容根 `_index.md` 的介绍与实际直接子项，导出为 `writing/index.html` |
+| `/writing/*content_path/` | 按真实内容路径精确分发目录或文章，并导出相应 `index.html`；源码路由拒绝未知路径、无尾斜线和重复斜线 |
+| 未知路径 | 静态托管使用根 `404.html` 并保留 HTTP 404；不是客户端假成功页 |
 | `/#focus` | 同页关注分区：系统与开发工具、形式化验证、AI 与工程实践；链接对应项目或经历 |
 | `/#about` | 同页关于简介；后续教育、项目、经历、CodeFlow、荣誉交流和示例文章各为独立章节，不共用一个动画容器 |
 | `/#background` | 教育与技能：软件工程学习背景、语言与后端、系统环境、验证与 AI |
@@ -94,7 +116,7 @@
 
 博客简介和项目链接以 `src/profile.rs` 为准，固定资料随 `Locale` 切换，中英文不补造事实。项目使用当前仓库名 `n3v3`，关于分区仅说明一次“原 Neve”。保留 `/#experience`、`/#codeflow` 真实资料锚点；删除“精选项目”按钮、`#projects` 快捷入口及对应 id，项目事实与 `projects-title` 标题仍保留。卡片随正文容器宽度在三列、两列、单列之间切换。旧 `/focus`、`/about` 返回 404，不维护别名或重定向。仅改变 README 展示不是源码隐私隔离；将博客源码推送到公开仓库仍会公开其中的资料，提交和发布须另行授权。
 
-主导航按正文顺序提供九个锚点：首页、关注领域、关于、教育与技能、项目与开源、工程经历、CodeFlow 社团、荣誉与交流、示例文章。`LandingSection::ALL` 共用顺序、路径和目标 ID，侧栏和面包屑使用同一活动状态；长英文标签完整换行。个人资料的片段链接统一使用普通 `<a target="_self">`，显式绕过当前 Router 的点击拦截。同文档由浏览器原生更新 hash、定位和处理键盘焦点；从阅读页进入时先加载完整 SSR 文档再定位。当前 Leptos 客户端曾复现跨页 hash 不定位、同页侧栏锚点焦点停在正文开头，不能恢复无 opt-out 的路径，也不补写 History 掩盖问题。移动菜单点击任一内容锚点后关闭并以 `preventScroll` 聚焦实际目标；阅读树的目录保持菜单打开、文章关闭的规则不变。
+主导航按正文顺序提供九个锚点：首页、关注领域、关于、教育与技能、项目与开源、工程经历、CodeFlow 社团、荣誉与交流、示例文章。`LandingSection::ALL` 共用顺序、路径和目标 ID，侧栏和面包屑使用同一活动状态；长英文标签完整换行。个人资料的片段链接统一使用普通 `<a target="_self">`，显式绕过当前 Router 的点击拦截。同文档由浏览器原生更新 hash、定位和处理键盘焦点；从阅读页进入时先加载完整 HTML 文档再定位。当前 Leptos 客户端曾复现跨页 hash 不定位、同页侧栏锚点焦点停在正文开头，不能恢复无 opt-out 的路径，也不补写 History 掩盖问题。移动菜单点击任一内容锚点后关闭并以 `preventScroll` 聚焦实际目标；阅读树的目录保持菜单打开、文章关闭的规则不变。
 
 首页、关注、关于三个主分区至少一屏，其余资料章节保留自然高度；正文不拦截滚轮、不强制吸附或内部滚动。九个外层 `.landing-section` 保持稳定的锚点几何，仅直接子 `.landing-motion` 随滚动逐节过渡：进场上移渐显，离场缩小淡出，反向滚动会恢复。长章节的中段保持完全清晰，尾部接近离场时才开始缩退。默认内容可见；无 JavaScript、动效偏好无法读取或启用减少动态效果时保持静态，键盘可见焦点所在节也不淡化。参考 [Codrops 分区滚动过渡](https://tympanus.net/codrops/2024/01/31/on-scroll-animation-ideas-for-sticky-sections/) 的缩退与接替构图，不引入 GSAP，也不再依赖 CSS scroll timeline。
 
@@ -102,13 +124,13 @@
 
 新增内容只维护 `content/posts/`：目录提供 `_index.md`，文章在 front matter 保存标题、摘要、日期及阅读分钟数，目录与文章的 `weight` 统一控制同级顺序。构建脚本递归发现内容，校验 YAML、路径冲突和相对 Markdown 链接，生成 SSR 与 WASM 共用的 `Directory`、`Post`、`ContentEntry` 索引；`POSTS` 是生成结果，不是手写登记表。每个目录可直接放文章、子目录或两者混合，也可为空；不再有固定 Book/Chapter 模型。具体字段、限制、网址与维护流程见 [内容规范](content-format.md)。
 
-内容正文编入二进制；新增、移动、改标题或改排序后必须重建，`./dev.sh leptos watch` 同时监听内容目录。YAML 解析器仅为 build/dev 依赖，完整消费一份文档并限制解析资源，不启用文件包含或属性展开。出错时构建失败并报告文件与原因，不静默遗漏内容。原始 HTML 和危险链接仍不执行；相对 `.md`／`_index.md` 链接检查目标页面并改写为规范网址。生成索引供页面、左树、面包屑、父级入口和首页列表共同使用，目录介绍只显示本目录正文，不拼接子目录介绍。
+内容正文编入二进制；新增、移动、改标题或改排序后必须重建并重新导出静态站点，`./dev.sh leptos watch` 仅负责本地开发监听。YAML 解析器仅为 build/dev 依赖，完整消费一份文档并限制解析资源，不启用文件包含或属性展开。出错时构建失败并报告文件与原因，不静默遗漏内容。原始 HTML 和危险链接仍不执行；相对 `.md`／`_index.md` 链接检查目标页面并改写为规范网址。生成索引供导出、页面、左树、面包屑、父级入口和首页列表共同使用，目录介绍只显示本目录正文，不拼接子目录介绍。
 
-网址严格随文件位置变化，不维护 slug、permalink、别名或重定向。现有文章如 `content/posts/demo-notes/systems/small-systems.md` 对应 `/writing/demo-notes/systems/small-systems`；旧文章地址、`/writing/books/...` 和旧章节地址不再解析。根路由和通配路由使用同一个响应式分发器，不能让 `/writing/` 在正文显示根目录、导航却显示 404。首次 HTTP 响应包含可阅读内容；hydration 后客户端导航与偏好交互可用。
+所有非根内容网址统一以 `/` 结尾，并严格随文件位置变化，不维护 slug、permalink、别名或重定向表。`content/posts/demo-notes/systems/small-systems.md` 对应 `/writing/demo-notes/systems/small-systems/`；旧文章地址、`/writing/books/...` 和旧章节地址不再解析。Markdown 物理来源路径与公开 URL 分开处理。应用路由拒绝无尾斜线等非规范路径；静态托管平台可能先做目录重定向，其真实状态码须上线后核验，不能把本地预览的 301 当成 Pages 保证。HTML 首次响应即包含可阅读正文，hydration 后客户端导航与偏好交互可用。
 
 阅读区采用稳定的双栏分工：左栏提供真实目录与文章的可展开内容树；右栏仅在文章有真实 Markdown 小标题时显示“本文目录”，不重复文章标题。根目录、其他目录及无效路由不显示右目录，也不在正文重复插入另一份导航树。左栏顶部固定返回主导航、阅读导航标题和根目录入口；当前页精确标记，深链自动展开真实祖先。根下默认展开排序后的首个目录，其他手动展开状态保留到组件销毁。树标题完整换行，行高至少 44px，深层缩进最多累计到三级以保留窄栏可读宽度。
 
-保留主导航与阅读区两个纵向面板，不再按内容层级横向换页。主导航向下滚轮先滚动当前长列表，到底后才进入 `/writing`；只有位于 `/writing` 且左树已滚到顶部时，向上滚轮才返回首页，目录和文章深页只滚动而不跳出阅读。沿用惯性抑制和键盘切换，不截获目录链接的正常键盘操作。主导航文章入口位于面板底部，短视口可随面板滚动到达；折叠后的九项图标与归档入口也置于独立纵向滚动容器，滚轮不穿透到正文。折叠栏归档入口先展开侧栏再进入内容根，不重复写入历史。短视口中阅读头部固定、当前面板内部滚动。
+保留主导航与阅读区两个纵向面板，不再按内容层级横向换页。主导航向下滚轮先滚动当前长列表，到底后才进入 `/writing/`；只有位于 `/writing/` 且左树已滚到顶部时，向上滚轮才返回首页，目录和文章深页只滚动而不跳出阅读。沿用惯性抑制和键盘切换，不截获目录链接的正常键盘操作。主导航文章入口位于面板底部，短视口可随面板滚动到达；折叠后的九项图标与归档入口也置于独立纵向滚动容器，滚轮不穿透到正文。折叠栏归档入口先展开侧栏再进入内容根，不重复写入历史。短视口中阅读头部固定、当前面板内部滚动。
 
 文章目录随正文区域而非整个窗口响应：`.site-workspace` 至少 1100px 时显示右栏，否则使用正文原生 `details.article-outline-compact`；没有目录的页面不留空列。拖动或折叠左栏会重新分配宽度。`site.css` 断点须与 `directory_focus.rs` 的 `CURRENT_DIRECTORY_MIN_WORKSPACE_PX` 保持一致。目录焦点迁移合并到可取消的动画帧，执行时根据实际可见目录选择 summary 或右栏标题，不打开折叠内容、不滚动页面；快速反向跨断点不会执行旧目标，用户主动改换焦点会取消迁移，路由切换的正文焦点请求优先。
 
@@ -116,7 +138,7 @@
 
 两个文章目录共用由 `SiteShell` 提供的当前标题状态。标题节点按文章缓存，滚动、窗口缩放和历史锚点事件合并为可取消的动画帧采样；换文章清理旧监听和节点。普通滚动只更新 `aria-current="location"`，不改 URL、历史或焦点，点击仍使用真实锚点。标题定位允许 1px 取整误差，实际滚动到底时选中末标题，不能以严格坐标相等或仅靠 hash 判断当前阅读位置。
 
-两种主题共用网格、圆角、间距、装饰和响应式布局，仅通过色彩变量区分浅色暖纸与夜间紫黑。首页标题按实际文案语言和正文可用宽度缩放，英文保持两行；中等宽度改为单列，不为英文维护第二份页面。侧栏支持折叠、拖动宽度和移动端抽屉。字体由 `assets/site.css` 的 `@font-face` 自托管 Maple Mono NF、JetBrainsMono Nerd Font Mono、思源黑体与思源宋体 Regular/Bold；微软雅黑与仿宋仅为访客系统字体回退，不重新分发。`public/fonts/NOTICE.txt` 记录来源、SHA 与许可证路径；完整 CJK OTF 较大，首屏需要按需加载字体，在调整字体打包方案时核对字形覆盖与许可。无后台、登录、评论、在线编辑、RSS 或部署配置。正式发布前需替换示例文章、审阅仓库内容，并评估部署安全、浏览器兼容性和可访问性。
+两种主题共用网格、圆角、间距、装饰和响应式布局，仅通过色彩变量区分浅色暖纸与夜间紫黑。首页标题按实际文案语言和正文可用宽度缩放，英文保持两行；中等宽度改为单列，不为英文维护第二份页面。侧栏支持折叠、拖动宽度和移动端抽屉。字体由 `assets/site.css` 的 `@font-face` 自托管 Maple Mono NF、JetBrainsMono Nerd Font Mono、思源黑体与思源宋体 Regular/Bold；微软雅黑与仿宋仅为访客系统字体回退，不重新分发。`public/fonts/NOTICE.txt` 记录来源、SHA 与许可证路径；完整 CJK OTF 较大，在调整字体打包方案时核对字形覆盖与许可。无后台、登录、评论、在线编辑或 RSS；Pages 发布配置与授权边界见上文。正式发布前需替换示例文章、审阅仓库内容，并评估部署安全、浏览器兼容性和可访问性。
 
 ## 博客设计来源
 

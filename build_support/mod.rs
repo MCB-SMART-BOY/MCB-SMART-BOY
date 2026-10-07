@@ -175,7 +175,7 @@ fn scan_directory(
             scan_directory(
                 index,
                 &file,
-                format!("{page}/{name}"),
+                format!("{page}{name}/"),
                 Some(page.clone()),
                 depth + 1,
             )?;
@@ -185,7 +185,7 @@ fn scan_directory(
                 .and_then(|value| value.to_str())
                 .ok_or_else(|| invalid(&file, "name", "expected a UTF-8 Markdown filename"))?;
             validate_entry_name(&file, stem)?;
-            add_article(index, &file, format!("{page}/{stem}"), &page)?;
+            add_article(index, &file, format!("{page}{stem}/"), &page)?;
         } else if !kind.is_file() {
             return Err(invalid(
                 &file,
@@ -204,11 +204,11 @@ fn validate_links(
     paths: &BTreeMap<String, &Path>,
 ) -> Result<(), ContentError> {
     for directory in &index.directories {
-        let source = format!("{}/_index.md", directory.path);
+        let source = format!("{}/_index.md", directory.path.trim_end_matches('/'));
         validate_body_links(&directory.file, &source, &directory.body, paths)?;
     }
     for article in &index.articles {
-        let source = format!("{}.md", article.path);
+        let source = format!("{}.md", article.path.trim_end_matches('/'));
         validate_body_links(&article.file, &source, &article.body, paths)?;
     }
     Ok(())
@@ -315,7 +315,7 @@ pub(crate) fn load_content(root: &Path) -> Result<ContentIndex, ContentError> {
         articles: Vec::new(),
         entries: BTreeMap::new(),
     };
-    scan_directory(&mut index, root, "/writing".to_owned(), None, 0)?;
+    scan_directory(&mut index, root, "/writing/".to_owned(), None, 0)?;
     sort_entries(&mut index)?;
     Ok(index)
 }

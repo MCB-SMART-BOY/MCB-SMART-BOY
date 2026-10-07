@@ -4,6 +4,8 @@
 pub mod app;
 pub mod components;
 mod content;
+#[cfg(feature = "ssr")]
+pub mod export;
 mod landing;
 #[cfg(feature = "hydrate")]
 mod landing_motion;
@@ -26,12 +28,12 @@ pub fn hydrate() {
         .and_then(|document| document.document_element());
     let preferences = preferences::parse_preferences(
         root.as_ref()
-            .and_then(|element| element.get_attribute("data-ui"))
+            .and_then(|element| element.get_attribute("data-ssr-ui"))
             .as_deref(),
     );
     let locale = locale::parse_locale(
         root.as_ref()
-            .and_then(|element| element.get_attribute("lang"))
+            .and_then(|element| element.get_attribute("data-ssr-lang"))
             .as_deref(),
     );
     leptos::mount::hydrate_body(move || {

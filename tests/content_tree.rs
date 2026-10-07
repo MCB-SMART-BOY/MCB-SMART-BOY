@@ -63,22 +63,22 @@ fn content_tree_new_nested_and_direct_article_appear_in_parent_order() {
     );
     let index = load_content(root.path()).expect("load a nested mixed-content tree");
     assert_eq!(
-        entry_paths(&index, "/writing/book"),
-        ["/writing/book/intro", "/writing/book/deep"]
+        entry_paths(&index, "/writing/book/"),
+        ["/writing/book/intro/", "/writing/book/deep/"]
     );
     assert_eq!(
-        entry_paths(&index, "/writing/book/deep"),
-        ["/writing/book/deep/final"]
+        entry_paths(&index, "/writing/book/deep/"),
+        ["/writing/book/deep/final/"]
     );
     assert_eq!(
         index.directories[2].parent_path.as_deref(),
-        Some("/writing/book")
+        Some("/writing/book/")
     );
     assert_eq!(
         index
             .articles
             .iter()
-            .find(|post| post.path == "/writing/book/intro")
+            .find(|post| post.path == "/writing/book/intro/")
             .expect("article exists")
             .body,
         "\nHello"
@@ -105,8 +105,8 @@ fn content_tree_empty_section_remains_navigable() {
     let root = fixture();
     section(root.path(), "empty", "Empty", "");
     let index = load_content(root.path()).expect("load empty directory");
-    assert_eq!(entry_paths(&index, "/writing"), ["/writing/empty"]);
-    assert!(entry_paths(&index, "/writing/empty").is_empty());
+    assert_eq!(entry_paths(&index, "/writing/"), ["/writing/empty/"]);
+    assert!(entry_paths(&index, "/writing/empty/").is_empty());
 }
 
 #[test]
@@ -124,8 +124,8 @@ fn content_tree_moving_article_changes_parent_and_canonical_url() {
     );
     let previous = load_content(root.path()).expect("load initial tree");
     assert_eq!(
-        entry_paths(&previous, "/writing/first"),
-        ["/writing/first/story"]
+        entry_paths(&previous, "/writing/first/"),
+        ["/writing/first/story/"]
     );
     fs::rename(
         root.path().join("first/story.md"),
@@ -133,16 +133,16 @@ fn content_tree_moving_article_changes_parent_and_canonical_url() {
     )
     .expect("move fixture");
     let updated = load_content(root.path()).expect("reload moved article");
-    assert!(entry_paths(&updated, "/writing/first").is_empty());
+    assert!(entry_paths(&updated, "/writing/first/").is_empty());
     assert_eq!(
-        entry_paths(&updated, "/writing/second"),
-        ["/writing/second/story"]
+        entry_paths(&updated, "/writing/second/"),
+        ["/writing/second/story/"]
     );
     assert!(
         updated
             .articles
             .iter()
-            .all(|post| post.path != "/writing/first/story")
+            .all(|post| post.path != "/writing/first/story/")
     );
 }
 
@@ -170,13 +170,13 @@ fn content_tree_weight_ties_and_latest_dates_are_deterministic() {
     );
     let index = load_content(root.path()).expect("sort tree");
     assert_eq!(
-        entry_paths(&index, "/writing"),
+        entry_paths(&index, "/writing/"),
         [
-            "/writing/a-weighted",
-            "/writing/alpha",
-            "/writing/zeta",
-            "/writing/another",
-            "/writing/z-plain",
+            "/writing/a-weighted/",
+            "/writing/alpha/",
+            "/writing/zeta/",
+            "/writing/another/",
+            "/writing/z-plain/",
         ]
     );
     assert_eq!(
@@ -186,9 +186,9 @@ fn content_tree_weight_ties_and_latest_dates_are_deterministic() {
             .map(|post| post.path.as_str())
             .collect::<Vec<_>>(),
         [
-            "/writing/a-weighted",
-            "/writing/another",
-            "/writing/z-plain",
+            "/writing/a-weighted/",
+            "/writing/another/",
+            "/writing/z-plain/",
         ]
     );
 }
@@ -211,8 +211,8 @@ fn content_tree_editing_front_matter_changes_title_weight_and_date() {
     assert_eq!(after.articles[0].title, "Updated");
     assert_eq!(after.articles[0].date, "10.03 / 2026");
     assert_eq!(
-        entry_paths(&after, "/writing"),
-        ["/writing/beta", "/writing/alpha"]
+        entry_paths(&after, "/writing/"),
+        ["/writing/beta/", "/writing/alpha/"]
     );
 }
 
@@ -310,6 +310,16 @@ fn content_tree_front_matter_document_end_rejects_trailing_yaml_errors() {
 fn content_tree_relative_markdown_links_resolve_and_missing_targets_fail() {
     let root = fixture();
     section(root.path(), "collection", "Collection", "");
+    put(
+        root.path(),
+        "_index.md",
+        "---\ntitle: Writing\n---\n\n[collection](collection/_index.md)",
+    );
+    put(
+        root.path(),
+        "collection/_index.md",
+        "---\ntitle: Collection\n---\n\n[root](../_index.md) [target](target.md)",
+    );
     article(
         root.path(),
         "collection/target.md",
@@ -324,7 +334,7 @@ fn content_tree_relative_markdown_links_resolve_and_missing_targets_fail() {
         "Source",
         "2026-10-02",
         "",
-        "[target](target.md#section-1) [directory](_index.md)",
+        "[target](target.md#section-1) [directory](_index.md) [root](../_index.md)",
     );
     load_content(root.path()).expect("valid article and directory relative links");
     article(
@@ -357,7 +367,7 @@ fn content_tree_article_suffix_is_stripped_once() {
         "[self](note.md.md)",
     );
     let index = load_content(root.path()).expect("preserve the rest of the filename");
-    assert_eq!(entry_paths(&index, "/writing"), ["/writing/note.md"]);
+    assert_eq!(entry_paths(&index, "/writing/"), ["/writing/note.md/"]);
 }
 
 #[test]

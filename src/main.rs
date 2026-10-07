@@ -1,7 +1,7 @@
-use std::{env, fs, io, net::SocketAddr, path::Path};
+use std::{env, ffi::OsStr, fs, io, net::SocketAddr, path::Path};
 
 use leptos::prelude::{LeptosOptions, get_configuration};
-use mcb_smart_boy::server::build_app;
+use mcb_smart_boy::{export::export_site, server::build_app};
 
 fn read_address(default: SocketAddr) -> Result<SocketAddr, io::Error> {
     match env::var("BLOG_ADDR") {
@@ -47,8 +47,24 @@ fn validate_site_root(options: &LeptosOptions) -> Result<(), io::Error> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut arguments = env::args_os().skip(1);
+    let command = arguments.next();
+    if arguments.next().is_some()
+        || command
+            .as_deref()
+            .is_some_and(|value| value != OsStr::new("export"))
+    {
+        return Err(
+            io::Error::new(io::ErrorKind::InvalidInput, "usage: mcb-smart-boy [export]").into(),
+        );
+    }
     let config = get_configuration(Some("Cargo.toml"))?;
     let mut options = config.leptos_options;
+    if command.is_some() {
+        let output = export_site(options).await?;
+        println!("Exported static pages to {}", output.display());
+        return Ok(());
+    }
     validate_site_root(&options)?;
     let address = read_address(options.site_addr)?;
     options.site_addr = address;
