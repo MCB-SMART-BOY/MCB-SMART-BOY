@@ -8,7 +8,11 @@ use leptos::prelude::*;
 use leptos_meta::{Meta, Title};
 use leptos_router::components::A;
 
-use super::{about::AboutSection, focus::FocusSection, post_list::PostList};
+use super::{
+    about::{AboutSection, ProfileSections},
+    focus::FocusSection,
+    post_list::PostList,
+};
 
 #[component]
 pub fn HomePage() -> impl IntoView {
@@ -23,10 +27,11 @@ pub fn HomePage() -> impl IntoView {
             <section id=LandingSection::Home.id() class="landing-section landing-panel" tabindex="-1" aria-labelledby="hero-title">
                 <div class="landing-page landing-motion"><Hero locale/><Ticker locale/></div>
             </section>
+            <AboutSection/>
             <section id=LandingSection::Focus.id() class="landing-section landing-panel" tabindex="-1" aria-labelledby="focus-title">
                 <div class="landing-page landing-motion"><FocusSection/></div>
             </section>
-            <AboutSection/>
+            <ProfileSections/>
             <RecentPosts locale/>
             <Closing locale/>
         </div>

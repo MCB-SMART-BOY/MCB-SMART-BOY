@@ -10,7 +10,7 @@ pub(super) fn FocusSection() -> impl IntoView {
         use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
     view! {
         <section class="page-intro focus-intro" aria-labelledby="focus-title">
-            <span class="section-kicker"><span class="square" aria-hidden="true"></span>" 02 / CURRENT SIGNAL"</span>
+            <span class="section-kicker"><span class="square" aria-hidden="true"></span>" 03 / CURRENT SIGNAL"</span>
             <h2 id="focus-title">{move || locale.get().select("持续关注", "Areas of focus")}<span class="accent">"."</span></h2>
             <p>{move || locale.get().select("不是完成清单，而是持续探索的问题空间。", "Not a list of achievements, but questions to keep exploring.")}</p>
         </section>

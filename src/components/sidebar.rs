@@ -350,7 +350,7 @@ pub(super) fn SidebarNavigation(show_writing_link: bool) -> impl IntoView {
     let writing_active = move || resolve_reading_route(&pathname.get()).is_some();
     view! {
         <nav class="sidebar-nav" aria-label=move || locale.get().select("主导航", "Main navigation")>
-            {LandingSection::ALL.into_iter().map(move |section| view! {
+            {LandingSection::iter_navigation().map(move |section| view! {
                 <a href=section.href() target="_self"
                     class=move || if is_landing_active(section) { "sidebar-link is-active" } else { "sidebar-link" }
                     title=move || section.label(locale.get())

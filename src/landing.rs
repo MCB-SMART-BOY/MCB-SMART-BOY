@@ -5,11 +5,11 @@ use crate::locale::Locale;
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LandingSection {
     Home,
-    Focus,
     About,
-    Background,
+    Focus,
     Projects,
     Experience,
+    Background,
     Community,
     Recognition,
     Notes,
@@ -18,15 +18,21 @@ pub(crate) enum LandingSection {
 impl LandingSection {
     pub(crate) const ALL: [Self; 9] = [
         Self::Home,
-        Self::Focus,
         Self::About,
-        Self::Background,
+        Self::Focus,
         Self::Projects,
         Self::Experience,
+        Self::Background,
         Self::Community,
         Self::Recognition,
         Self::Notes,
     ];
+
+    pub(crate) fn iter_navigation() -> impl Iterator<Item = Self> {
+        Self::ALL
+            .into_iter()
+            .filter(|section| *section != Self::Recognition)
+    }
 
     pub(crate) fn href(self) -> &'static str {
         match self {

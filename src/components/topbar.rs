@@ -142,7 +142,6 @@ pub(super) fn Topbar(
     view! {
         <header class="site-topbar">
             <Breadcrumbs/>
-            <span class="topbar-brand">"MCB-SMART-BOY"</span>
             <MobileDrawerButton is_hydrated is_drawer_open drawer trigger/>
             <div class="topbar-actions">
                 <LanguageToggle is_hydrated/>

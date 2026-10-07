@@ -31,9 +31,17 @@ pub(super) fn AboutSection() -> impl IntoView {
         </section>
         </div>
         </section>
-        <ProfileBackground locale/>
+    }
+}
+
+#[component]
+pub(super) fn ProfileSections() -> impl IntoView {
+    let locale =
+        use_context::<RwSignal<Locale>>().unwrap_or_else(|| RwSignal::new(Locale::default()));
+    view! {
         <ProfileProjects locale/>
         <ProfileExperience locale/>
+        <ProfileBackground locale/>
         <ProfileCommunity/>
         <ProfileRecognition locale/>
         <p class="profile-note">{move || locale.get().select(
